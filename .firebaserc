@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "dorm-27fe2"
+  },
+  "targets": {
+    "dorm-27fe2": {
+      "hosting": {
+        "dorm-27fe2-eb047": [
+          "dorm-27fe2-eb047"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,130 @@
+.tenant-layout {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  background: #f8fafc;
+}
+
+.tenant-sidebar {
+  border-right: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tenant-sidebar h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.tenant-email {
+  color: #6b7280;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.tenant-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.tenant-nav-link {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.tenant-nav-link.active {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.tenant-logout {
+  margin-top: auto;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #ef4444;
+  color: #fff;
+  font-weight: 700;
+}
+
+.tenant-content {
+  padding: 24px;
+}
+
+.tenant-page {
+  display: grid;
+  gap: 16px;
+}
+
+.tenant-page-header h1 {
+  margin: 0 0 4px;
+}
+
+.tenant-page-header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.tenant-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.tenant-summary-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.tenant-summary-card h3 {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.tenant-summary-card p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.tenant-table-wrap,
+.tenant-profile-card,
+.tenant-callout {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.tenant-profile-card {
+  display: grid;
+  gap: 10px;
+}
+
+.tenant-profile-card label {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.tenant-profile-card p {
+  margin: 3px 0 0;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .tenant-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .tenant-content {
+    padding: 16px;
+  }
+}

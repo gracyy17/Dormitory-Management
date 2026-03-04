@@ -1,35 +1,60 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import PublicRoutes from './pages/PublicRoutes';
+import AdminRoutes from './pages/AdminRoutes';
+import TenantRoutes from './pages/TenantRoutes';
+import AdminLogin from './components/admin/AdminLogin';
+import TenantLogin from './components/public/TenantLogin';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
-function App() {
-  const [count, setCount] = useState(0)
+function RequireRole({ role: expectedRole, children, redirectTo }) {
+  const { user, role, loading } = useAuth();
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+  if (loading) {
+    return <div className="App" style={{ padding: '2rem' }}>Loading...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to={redirectTo} replace />;
+  }
+
+  if (expectedRole && role !== expectedRole) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
 }
 
-export default App
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <Routes>
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/tenant/login" element={<TenantLogin />} />
+            <Route
+              path="/admin/*"
+              element={(
+                <RequireRole role="admin" redirectTo="/admin/login">
+                  <AdminRoutes />
+                </RequireRole>
+              )}
+            />
+            <Route
+              path="/tenant/*"
+              element={(
+                <RequireRole role="tenant" redirectTo="/tenant/login">
+                  <TenantRoutes />
+                </RequireRole>
+              )}
+            />
+            <Route path="/*" element={<PublicRoutes />} />
+          </Routes>
+        </div>
+      </Router>
+    </AuthProvider>
+  );
+}
+
+export default App;
