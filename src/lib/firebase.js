@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -18,12 +19,14 @@ const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
 let app = null;
 let auth = null;
 let db = null;
+let storage = null;
 let analytics = null;
 
 if (isFirebaseConfigured) {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
+  storage = getStorage(app);
 
   const hasMeasurementId = Boolean(firebaseConfig.measurementId);
   if (hasMeasurementId && typeof window !== 'undefined') {
@@ -39,4 +42,4 @@ if (isFirebaseConfigured) {
   }
 }
 
-export { app, auth, db, analytics, isFirebaseConfigured };
+export { app, auth, db, storage, analytics, firebaseConfig, isFirebaseConfigured };

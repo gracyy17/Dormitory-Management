@@ -29,6 +29,9 @@ A modern web app for dormitory management, built with React and Vite.
 1. Clone the repo: `git clone https://github.com/gracyy17/Dormitory-Management.git`
 2. Install dependencies: `npm install`
 3. Copy `.env.example` to `.env` and fill in your Firebase project values
+  - Add `VITE_PAYMONGO_CHECKOUT_URL` with your PayMongo payment link/checkout URL
+  - Add `VITE_GCASH_QR_IMAGE_URL` with your admin GCash QR image URL
+  - (Phase 2) Add `VITE_PAYMENT_VERIFY_API_URL` for automatic reference-number verification API
 4. Create Firestore documents in `users/{uid}` with:
   - `role: "admin"` for client/admin accounts
   - `role: "tenant"` for tenant accounts
@@ -52,3 +55,42 @@ The project already includes:
 
 ---
 Replace placeholder content and connect to your backend as needed.
+
+## PayMongo Notes
+- PayMongo account setup has no setup or monthly fee on standard plans.
+- Live payments are charged per successful transaction (MDR/processing fees apply).
+- This project uses a redirect-style checkout link via `VITE_PAYMONGO_CHECKOUT_URL` for frontend-only integration.
+
+## GCash Receipt Verification Flow
+- Phase 1: Tenant scans GCash QR, uploads receipt image, submits reference number, then admin reviews via `/admin/payments`.
+- Phase 2: If `VITE_PAYMENT_VERIFY_API_URL` is configured, receipt reference gets auto-checked before admin review.
+
+## Due Reminder Notifications (Email)
+- Backend job is implemented in `functions/index.js`.
+- `sendDueRemindersScheduled`: runs every day at 9:00 AM (Asia/Manila).
+- `sendDueRemindersNow`: manual HTTP trigger for testing.
+- Admin UI trigger is available in `/admin/payments` via "Send Reminder Emails Now".
+
+### Data expected by reminder job
+- Collection: `dues`
+- Each due document should include:
+  - `tenantUid` (string)
+  - `amount` (string or number)
+  - `dueDate` (Firestore timestamp or ISO date string)
+  - `billingMonth` (string)
+  - `status` (`Pending` or `Overdue`)
+- Tenant contact data is read from `users/{uid}` (`email`, `notifyEmail`).
+
+### Deploy Functions
+1. Install dependencies: `cd functions && npm install`
+2. Set runtime environment values for providers (examples below)
+3. Deploy: `npx firebase-tools deploy --only functions`
+4. (Optional) Set `VITE_SEND_DUE_REMINDERS_URL` in frontend `.env` for custom function endpoint URL.
+
+### Email provider environment values (examples)
+- Email:
+  - `EMAIL_API_URL`
+  - `EMAIL_API_KEY`
+  - `EMAIL_FROM`
+
+Use your provider's API endpoint (e.g., SendGrid/Resend for email).

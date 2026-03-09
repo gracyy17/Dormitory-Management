@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 
 function TenantLogin() {
   const navigate = useNavigate();
-  const { loginWithRole, user, role, isFirebaseConfigured } = useAuth();
+  const { loginWithRole, user, role, mustChangePassword, isFirebaseConfigured } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,8 +18,8 @@ function TenantLogin() {
     setIsLoading(true);
 
     try {
-      await loginWithRole({ email, password, expectedRole: 'tenant' });
-      navigate('/tenant/dues');
+      const result = await loginWithRole({ email, password, expectedRole: 'tenant' });
+      navigate(result.mustChangePassword ? '/tenant/profile' : '/tenant/dues');
     } catch (authError) {
       setError(authError.message || 'Unable to login. Please check your credentials.');
     } finally {
@@ -28,7 +28,7 @@ function TenantLogin() {
   };
 
   if (user && role === 'tenant') {
-    return <Navigate to="/tenant/dues" replace />;
+    return <Navigate to={mustChangePassword ? '/tenant/profile' : '/tenant/dues'} replace />;
   }
 
   return (

@@ -1,6 +1,12 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
   },
   "hosting": {
     "site": "dorm-27fe2-eb047",

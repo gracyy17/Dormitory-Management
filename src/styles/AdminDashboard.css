@@ -752,6 +752,23 @@ body {
   color: #92400e;
 }
 
+.status-badge.pending-review,
+.status-badge.needs-review {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.verified,
+.status-badge.approved {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.rejected {
+  background-color: #fee2e2;
+  color: #7f1d1d;
+}
+
 .status-badge.overdue {
   background-color: #fee2e2;
   color: #7f1d1d;
