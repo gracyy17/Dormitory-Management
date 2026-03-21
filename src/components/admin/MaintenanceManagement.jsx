@@ -163,7 +163,7 @@ function MaintenanceManagement() {
         </div>
 
         {isLoading && <p>Loading maintenance data...</p>}
-        {error && <p style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</p>}
+        {error && <p className="admin-feedback is-error">{error}</p>}
 
         <section className="dashboard-widget">
           <div className="widget-header">

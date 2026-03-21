@@ -72,6 +72,7 @@ function RoomsManagement() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [tenantCountByRoom, setTenantCountByRoom] = useState({});
+  const [selectedBuilding, setSelectedBuilding] = useState('Building A');
 
   useEffect(() => {
     if (!db) {
@@ -377,6 +378,35 @@ function RoomsManagement() {
     [roomsWithDerivedOccupancy]
   );
 
+  useEffect(() => {
+    if (uniqueBuildings.length === 0) {
+      setSelectedBuilding('Building A');
+      return;
+    }
+
+    if (!uniqueBuildings.includes(selectedBuilding)) {
+      setSelectedBuilding(uniqueBuildings[0]);
+    }
+  }, [uniqueBuildings, selectedBuilding]);
+
+  const selectedBuildingRooms = useMemo(
+    () => roomsWithDerivedOccupancy.filter((room) => room.building === selectedBuilding),
+    [roomsWithDerivedOccupancy, selectedBuilding]
+  );
+
+  const selectedBuildingSummary = useMemo(() => {
+    const roomCount = selectedBuildingRooms.length;
+    const totalBeds = selectedBuildingRooms.reduce((sum, room) => sum + Number(room.capacity || 0), 0);
+    const occupiedBeds = selectedBuildingRooms.reduce((sum, room) => sum + Number(room.occupiedBeds || 0), 0);
+    const availableBeds = Math.max(totalBeds - occupiedBeds, 0);
+
+    return {
+      roomCount,
+      occupiedBeds,
+      availableBeds,
+    };
+  }, [selectedBuildingRooms]);
+
   return (
     <AdminLayout>
       <div className="rooms-management-page">
@@ -435,8 +465,65 @@ function RoomsManagement() {
         </section>
 
         {isLoading && <p>Loading rooms...</p>}
-        {error && <p style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</p>}
-        {success && <p style={{ color: '#166534', marginBottom: 12 }}>{success}</p>}
+        {error && <p className="admin-feedback is-error">{error}</p>}
+        {success && <p className="admin-feedback is-success">{success}</p>}
+
+        <section className="dashboard-widget rooms-drilldown-widget">
+          <div className="widget-header">
+            <h2>Building Rooms Overview</h2>
+            <span className="count-badge">{selectedBuilding}</span>
+          </div>
+
+          <div className="rooms-building-tabs" role="tablist" aria-label="Select building">
+            {uniqueBuildings.map((building) => (
+              <button
+                key={building}
+                type="button"
+                className={selectedBuilding === building ? 'rooms-building-tab active' : 'rooms-building-tab'}
+                onClick={() => setSelectedBuilding(building)}
+              >
+                {building}
+              </button>
+            ))}
+          </div>
+
+          <div className="rooms-building-summary">
+            <span>Rooms: {selectedBuildingSummary.roomCount}</span>
+            <span>Occupied Beds: {selectedBuildingSummary.occupiedBeds}</span>
+            <span>Available Beds: {selectedBuildingSummary.availableBeds}</span>
+          </div>
+
+          <div className="rooms-card-grid">
+            {selectedBuildingRooms.map((room) => {
+              const availableBeds = Math.max(Number(room.capacity || 0) - Number(room.occupiedBeds || 0), 0);
+
+              return (
+                <button
+                  key={room.id}
+                  type="button"
+                  className="room-occupancy-card"
+                  onClick={() => handleViewRoom(room)}
+                >
+                  <div className="room-card-head">
+                    <h3>Room {room.roomNo}</h3>
+                    <StatusBadge status={room.status} type={String(room.status || '').toLowerCase()} />
+                  </div>
+                  <p className="room-card-meta">{room.floor} Floor • {room.type}</p>
+                  <div className="room-card-stats">
+                    <span>Occupied: {room.occupiedBeds}</span>
+                    <span>Available: {availableBeds}</span>
+                  </div>
+                  <small>Tap to view Bed 1 to Bed {room.capacity}</small>
+                </button>
+              );
+            })}
+            {selectedBuildingRooms.length === 0 && (
+              <div className="rooms-empty-state">
+                <p>No rooms found for {selectedBuilding}.</p>
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* Rooms Table */}
         <section className="dashboard-widget">

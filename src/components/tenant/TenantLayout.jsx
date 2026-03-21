@@ -1,23 +1,72 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/TenantPortal.css';
+import { CardIcon, PowerIcon, UserIcon, WrenchIcon } from '../common/LineIcons';
+import { db } from '../../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 function TenantLayout({ children }) {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const [tenantName, setTenantName] = useState('Tenant');
+
+  useEffect(() => {
+    const loadTenantName = async () => {
+      if (!user?.uid || !db) {
+        setTenantName('Tenant');
+        return;
+      }
+
+      try {
+        const tenantDoc = await getDoc(doc(db, 'users', user.uid));
+        const profile = tenantDoc.exists() ? tenantDoc.data() || {} : {};
+        const resolvedName = profile.fullName || profile.name || user.displayName || '';
+
+        if (resolvedName.trim()) {
+          setTenantName(resolvedName.trim());
+          return;
+        }
+
+        const emailFallback = String(user.email || '').split('@')[0] || 'Tenant';
+        setTenantName(emailFallback);
+      } catch {
+        const emailFallback = String(user?.email || '').split('@')[0] || 'Tenant';
+        setTenantName(emailFallback);
+      }
+    };
+
+    loadTenantName();
+  }, [user?.uid, user?.email, user?.displayName]);
+
+  const sidebarEmail = useMemo(() => user?.email || '-', [user?.email]);
 
   const items = [
-    { to: '/tenant/dues', label: 'Dues' },
-    { to: '/tenant/maintenance', label: 'Maintenance' },
-    { to: '/tenant/profile', label: 'Profile' },
+    { to: '/tenant/dues', label: 'Dues', icon: <CardIcon className="ui-icon" size={17} /> },
+    { to: '/tenant/maintenance', label: 'Maintenance', icon: <WrenchIcon className="ui-icon" size={17} /> },
+    { to: '/tenant/profile', label: 'Profile', icon: <UserIcon className="ui-icon" size={17} /> },
   ];
 
   return (
     <div className="tenant-layout">
       <aside className="tenant-sidebar">
-        <h2>Tenant Portal</h2>
-        <p className="tenant-email">{user?.email}</p>
+        <div className="tenant-sidebar-brand">
+          <div className="tenant-brand-mark" aria-hidden="true">
+            <span className="brand-t">T</span>
+            <span className="brand-p">P</span>
+          </div>
+          <h2>MZ Dormitory</h2>
+        </div>
+
+        <div className="tenant-sidebar-header">
+          <div className="tenant-user-avatar" aria-hidden="true">
+            <UserIcon className="ui-icon" size={18} />
+          </div>
+          <div>
+            <p className="tenant-user-name">{tenantName}</p>
+            <p className="tenant-email">{sidebarEmail}</p>
+          </div>
+        </div>
 
         <nav className="tenant-nav">
           {items.map((item) => (
@@ -26,12 +75,15 @@ function TenantLayout({ children }) {
               to={item.to}
               className={location.pathname === item.to ? 'tenant-nav-link active' : 'tenant-nav-link'}
             >
-              {item.label}
+              <span className="tenant-nav-icon">{item.icon}</span>
+              <span>{item.label}</span>
             </Link>
           ))}
         </nav>
 
-        <button className="tenant-logout" onClick={logout}>Logout</button>
+        <button className="tenant-logout" onClick={logout}>
+          <PowerIcon className="ui-icon" size={18} />
+        </button>
       </aside>
 
       <main className="tenant-content">{children}</main>

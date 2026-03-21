@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, getDoc, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import DataTable from '../common/DataTable';
 import StatusBadge from '../common/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { db, storage } from '../../lib/firebase';
 import { verifyPaymentReference } from '../../lib/paymentVerification';
+import { CalendarIcon, CardIcon, UploadIcon } from '../common/LineIcons';
 
 const formatPeso = (value) => `P${Number(value || 0).toLocaleString('en-PH')}`;
 
@@ -40,9 +40,9 @@ function TenantDues() {
   const gcashQrImageUrl = import.meta.env.VITE_GCASH_QR_IMAGE_URL;
 
   const paymentMethods = [
-    { value: 'GCash', details: 'Pay via PayMongo e-wallet checkout' },
-    { value: 'Maya', details: 'Pay via PayMongo e-wallet checkout' },
-    { value: 'Card / Bank', details: 'Pay via PayMongo secure page' },
+    { value: 'Maya', details: 'PayMongo e-wallet checkout' },
+    { value: 'GCash', details: 'PayMongo e-wallet checkout' },
+    { value: 'Card / Bank', details: 'PayMongo secure page' },
   ];
 
   const dueRows = useMemo(() => {
@@ -312,45 +312,42 @@ function TenantDues() {
     },
   ];
 
-  const paymentHistoryColumns = [
-    { key: 'submittedAt', label: 'Date Submitted' },
-    { key: 'billingMonth', label: 'Billing Month' },
-    { key: 'amount', label: 'Amount' },
-    { key: 'method', label: 'Method' },
-    { key: 'referenceNumber', label: 'Reference No.' },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (status) => <StatusBadge status={status} type={String(status).toLowerCase().replace(' ', '-')} />,
-    },
-  ];
-
   return (
     <section className="tenant-page">
       <header className="tenant-page-header">
+        <span className="tenant-page-kicker">Tenant Portal</span>
         <h1>My Dues</h1>
         <p>Track your monthly payments and due dates.</p>
       </header>
 
       <div className="tenant-summary-grid">
         <article className="tenant-summary-card">
-          <h3>Current Balance</h3>
-          <p>{summary.currentBalance}</p>
+          <div className="tenant-summary-icon"><CardIcon className="ui-icon" size={19} /></div>
+          <div>
+            <h3>Current Balance</h3>
+            <p>{summary.currentBalance}</p>
+          </div>
         </article>
         <article className="tenant-summary-card">
-          <h3>Next Due Date</h3>
-          <p>{summary.nextDueDate}</p>
+          <div className="tenant-summary-icon"><CalendarIcon className="ui-icon" size={19} /></div>
+          <div>
+            <h3>Next Due Date</h3>
+            <p>{summary.nextDueDate}</p>
+          </div>
         </article>
         <article className="tenant-summary-card">
-          <h3>Payment Status</h3>
-          <p>{summary.paymentStatus}</p>
+          <div className="tenant-summary-icon"><CardIcon className="ui-icon" size={19} /></div>
+          <div>
+            <h3>Payment Status</h3>
+            <p className="tenant-status-text">{summary.paymentStatus}</p>
+          </div>
         </article>
       </div>
 
       <section className="tenant-payment-card">
         <div className="tenant-payment-header">
-          <h3>Payment Method</h3>
-          <p>Choose a channel and continue payment in PayMongo checkout.</p>
+          <h3>Payment Hub</h3>
+          <p>Choose a payment channel and submit proof for faster verification.</p>
         </div>
 
         <div className="tenant-payment-methods" role="radiogroup" aria-label="Payment methods">
@@ -361,83 +358,158 @@ function TenantDues() {
               className={paymentMethod === method.value ? 'tenant-method-btn active' : 'tenant-method-btn'}
               onClick={() => setPaymentMethod(method.value)}
             >
-              <span>{method.value}</span>
+              <span className="tenant-method-name">{method.value}</span>
               <small>{method.details}</small>
             </button>
           ))}
         </div>
 
-        <div className="tenant-payment-actions">
-          {paymentMethod !== 'GCash' && (
-            <button type="button" className="tenant-pay-btn" onClick={handlePayNow}>
-              Pay Now
-            </button>
-          )}
-          {paymentStatus && <p className="tenant-payment-status">{paymentStatus}</p>}
-        </div>
-
         {paymentMethod === 'GCash' && (
           <section className="tenant-gcash-section">
-            <h4>Scan Admin GCash QR</h4>
-
-            {gcashQrImageUrl ? (
-              <img className="tenant-gcash-qr" src={gcashQrImageUrl} alt="Admin GCash QR" />
-            ) : (
-              <p className="tenant-gcash-help">
-                GCash QR is not configured yet. Add VITE_GCASH_QR_IMAGE_URL in your .env file.
-              </p>
-            )}
+            <h4>Secure GCash Submission</h4>
 
             <form className="tenant-receipt-form" onSubmit={handleSubmitReceipt}>
-              <label htmlFor="reference-number">Reference Number</label>
-              <input
-                id="reference-number"
-                type="text"
-                value={referenceNumber}
-                onChange={(event) => setReferenceNumber(event.target.value)}
-                placeholder="Enter GCash reference number"
-                required
-              />
+              <div className="tenant-gcash-layout">
+                <div className="tenant-gcash-preview tenant-gcash-preview-pane">
+                  {gcashQrImageUrl ? (
+                    <img className="tenant-gcash-qr" src={gcashQrImageUrl} alt="Admin GCash QR" />
+                  ) : (
+                    <div className="tenant-gcash-placeholder">
+                      <span>QR</span>
+                    </div>
+                  )}
 
-              <label htmlFor="receipt-file">Upload Receipt</label>
-              <input
-                id="receipt-file"
-                type="file"
-                accept="image/*"
-                onChange={(event) => setReceiptFile(event.target.files?.[0] || null)}
-              />
+                  <div>
+                    <p className="tenant-gcash-title">Scan to pay via GCash</p>
+                    <p className="tenant-gcash-help">
+                      {gcashQrImageUrl
+                        ? 'Use your GCash app, complete payment, then upload your receipt details.'
+                        : 'Configure VITE_GCASH_QR_IMAGE_URL in .env to display your QR code.'}
+                    </p>
+                    <div className="tenant-gcash-due-meta">
+                      <span>Billing: {currentDue?.billingMonth || 'No pending due'}</span>
+                      <span>Amount: {currentDue ? currentDue.amount : 'P0'}</span>
+                    </div>
+                  </div>
+                </div>
 
-              <label htmlFor="receipt-link">or Receipt Image Link</label>
-              <input
-                id="receipt-link"
-                type="url"
-                value={receiptLink}
-                onChange={(event) => setReceiptLink(event.target.value)}
-                placeholder="https://..."
-              />
+                <div className="tenant-gcash-form-col tenant-gcash-form-pane">
+                  <input
+                    id="reference-number"
+                    type="text"
+                    value={referenceNumber}
+                    onChange={(event) => setReferenceNumber(event.target.value)}
+                    placeholder="GCash Reference Number"
+                    required
+                  />
 
-              <button type="submit" className="tenant-pay-btn" disabled={isSubmittingReceipt}>
-                {isSubmittingReceipt ? 'Submitting...' : 'Submit Receipt'}
-              </button>
+                  <div className="tenant-receipt-actions">
+                    <label htmlFor="receipt-file" className="tenant-upload-btn" title="Upload receipt image">
+                      <UploadIcon className="ui-icon" size={15} />
+                      <span>{receiptFile ? receiptFile.name : 'Upload Receipt'}</span>
+                    </label>
+                    <input
+                      id="receipt-file"
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setReceiptFile(event.target.files?.[0] || null)}
+                    />
+
+                    <button type="submit" className="tenant-pay-btn" disabled={isSubmittingReceipt}>
+                      {isSubmittingReceipt ? 'Submitting...' : 'Submit Dues Receipt'}
+                    </button>
+                  </div>
+
+                  <input
+                    id="receipt-link"
+                    type="url"
+                    value={receiptLink}
+                    onChange={(event) => setReceiptLink(event.target.value)}
+                    placeholder="(Optional) Receipt link"
+                  />
+                </div>
+              </div>
             </form>
           </section>
         )}
+
+        {paymentMethod !== 'GCash' && (
+          <div className="tenant-payment-actions">
+            <button type="button" className="tenant-pay-btn" onClick={handlePayNow}>
+              Continue to PayMongo
+            </button>
+          </div>
+        )}
+
+        {paymentStatus && <p className="tenant-payment-status">{paymentStatus}</p>}
       </section>
 
-      <div className="tenant-table-wrap">
-        {isDuesLoading ? <p>Loading dues...</p> : <DataTable columns={columns} data={dueRows} />}
-      </div>
+      <section className="tenant-table-wrap">
+        <div className="tenant-panel-header">
+          <h2>Monthly Dues Ledger</h2>
+          <p>Review your current billing schedule and due states.</p>
+        </div>
+        {isDuesLoading ? (
+          <p>Loading dues...</p>
+        ) : (
+          <table className="tenant-simple-table">
+            <thead>
+              <tr>
+                {columns.map((column) => <th key={column.key}>{column.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {dueRows.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.billingMonth}</td>
+                  <td>{row.amount}</td>
+                  <td>{row.dueDate}</td>
+                  <td><StatusBadge status={row.status} type={row.status.toLowerCase()} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
 
       <section className="tenant-table-wrap">
-        <header className="tenant-page-header" style={{ marginBottom: 8 }}>
-          <h1 style={{ fontSize: '1.1rem' }}>Payment History</h1>
-          <p>Track your submitted payments and verification status.</p>
-        </header>
+        <div className="tenant-panel-header">
+          <h2>Payment History</h2>
+          <p>All receipt submissions and current review status.</p>
+        </div>
 
         {isHistoryLoading ? (
           <p>Loading payment history...</p>
+        ) : paymentHistory.length === 0 ? (
+          <div className="tenant-history-empty">
+            <p>No previous payments found.</p>
+            <small>Your secure history will appear here.</small>
+          </div>
         ) : (
-          <DataTable columns={paymentHistoryColumns} data={paymentHistory} />
+          <table className="tenant-simple-table history-table">
+            <thead>
+              <tr>
+                <th>Date Submitted</th>
+                <th>Billing Month</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Reference No.</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paymentHistory.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.submittedAt}</td>
+                  <td>{row.billingMonth}</td>
+                  <td>{formatPeso(row.amount)}</td>
+                  <td>{row.method}</td>
+                  <td>{row.referenceNumber}</td>
+                  <td><StatusBadge status={row.status} type={String(row.status).toLowerCase().replace(' ', '-')} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </section>
     </section>

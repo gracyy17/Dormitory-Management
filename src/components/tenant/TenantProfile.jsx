@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/firebase';
+import { CheckCircleIcon, UploadIcon } from '../common/LineIcons';
 
 function TenantProfile() {
   const { user, mustChangePassword, changeMyPassword } = useAuth();
@@ -136,100 +137,122 @@ function TenantProfile() {
         </div>
       )}
 
-      <div className="tenant-profile-card">
-        <div>
-          <label>Profile Picture</label>
-          <div className="tenant-avatar-wrap">
+      <div className="tenant-profile-grid">
+        <article className="tenant-profile-card">
+          <h3>Account Overview</h3>
+
+          <div className="tenant-profile-avatar-wrap">
             {photoUrl ? (
               <img className="tenant-avatar" src={photoUrl} alt="Tenant profile" />
             ) : (
-              <div className="tenant-avatar tenant-avatar-fallback">
+              <div className="tenant-avatar tenant-avatar-fallback large">
                 {(user?.email || '?').slice(0, 1).toUpperCase()}
               </div>
             )}
           </div>
-        </div>
-        <div>
-          <label>Email</label>
-          <p>{user?.email || '-'}</p>
-        </div>
-        <div>
-          <label>UID</label>
-          <p>{user?.uid || '-'}</p>
-        </div>
-        <div>
-          <label>Email Verified</label>
-          <p>{user?.emailVerified ? 'Yes' : 'No'}</p>
-        </div>
+
+          <div className="tenant-profile-meta">
+            <div>
+              <label>Email Address</label>
+              <p>{user?.email || '-'}</p>
+            </div>
+            <div>
+              <label>Account ID (UID)</label>
+              <p>{user?.uid || '-'}</p>
+            </div>
+            <div>
+              <label>Email Status</label>
+              <p className="tenant-verified-row">
+                <CheckCircleIcon className="ui-icon" size={15} />
+                {user?.emailVerified ? 'Verified' : 'Not Verified'}
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <form className="tenant-password-form" onSubmit={handlePhotoSave}>
+          <h3>Change Profile Picture</h3>
+
+          <div className="tenant-profile-picture-panel">
+            {photoUrl ? (
+              <img className="tenant-avatar preview" src={photoUrl} alt="Tenant profile preview" />
+            ) : (
+              <div className="tenant-avatar tenant-avatar-fallback preview">
+                {(user?.email || '?').slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <span className="tenant-photo-edit-dot">
+              <UploadIcon className="ui-icon" size={12} />
+            </span>
+          </div>
+
+          <div className="tenant-file-row">
+            <label htmlFor="profile-photo-upload" className="tenant-file-button">Choose New Picture</label>
+            <span>{selectedPhotoFile ? selectedPhotoFile.name : 'No file selected'}</span>
+            <input
+              id="profile-photo-upload"
+              type="file"
+              accept="image/*"
+              onChange={(event) => setSelectedPhotoFile(event.target.files?.[0] || null)}
+            />
+          </div>
+
+          {photoMessage && <p className="tenant-payment-status">{photoMessage}</p>}
+
+          <button type="submit" className="tenant-pay-btn" disabled={photoSaving}>
+            {photoSaving ? 'Saving...' : 'Save Profile Picture'}
+          </button>
+        </form>
+
+        <form className="tenant-password-form" onSubmit={handlePasswordChange}>
+          <h3>Account Security</h3>
+
+          <div className="tenant-form-group">
+            <label htmlFor="current-password">Current Password</label>
+            <input
+              id="current-password"
+              type="password"
+              name="currentPassword"
+              value={form.currentPassword}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="tenant-form-group">
+            <label htmlFor="new-password">New Password</label>
+            <input
+              id="new-password"
+              type="password"
+              name="newPassword"
+              value={form.newPassword}
+              onChange={handleChange}
+              minLength={6}
+              required
+            />
+          </div>
+
+          <div className="tenant-form-group">
+            <label htmlFor="confirm-password">Confirm New Password</label>
+            <input
+              id="confirm-password"
+              type="password"
+              name="confirmPassword"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              minLength={6}
+              required
+            />
+          </div>
+
+          {error && <p className="tenant-form-error">{error}</p>}
+          {success && <p className="tenant-form-success">{success}</p>}
+
+          <button type="submit" className="tenant-pay-btn" disabled={isSubmitting}>
+            {isSubmitting ? 'Updating...' : 'Update Password'}
+          </button>
+        </form>
       </div>
-
-      <form className="tenant-password-form" onSubmit={handlePhotoSave}>
-        <h3>Edit Profile Picture</h3>
-        <div className="tenant-form-group">
-          <label htmlFor="profile-photo-upload">Upload Profile Image</label>
-          <input
-            id="profile-photo-upload"
-            type="file"
-            accept="image/*"
-            onChange={(event) => setSelectedPhotoFile(event.target.files?.[0] || null)}
-          />
-        </div>
-
-        {photoMessage && <p className="tenant-payment-status">{photoMessage}</p>}
-
-        <button type="submit" className="tenant-pay-btn" disabled={photoSaving}>
-          {photoSaving ? 'Saving...' : 'Save Profile Picture'}
-        </button>
-      </form>
-
-      <form className="tenant-password-form" onSubmit={handlePasswordChange}>
-        <h3>Change Password</h3>
-
-        <div className="tenant-form-group">
-          <label htmlFor="current-password">Current Password</label>
-          <input
-            id="current-password"
-            type="password"
-            name="currentPassword"
-            value={form.currentPassword}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <div className="tenant-form-group">
-          <label htmlFor="new-password">New Password</label>
-          <input
-            id="new-password"
-            type="password"
-            name="newPassword"
-            value={form.newPassword}
-            onChange={handleChange}
-            minLength={6}
-            required
-          />
-        </div>
-
-        <div className="tenant-form-group">
-          <label htmlFor="confirm-password">Confirm New Password</label>
-          <input
-            id="confirm-password"
-            type="password"
-            name="confirmPassword"
-            value={form.confirmPassword}
-            onChange={handleChange}
-            minLength={6}
-            required
-          />
-        </div>
-
-        {error && <p className="tenant-form-error">{error}</p>}
-        {success && <p className="tenant-form-success">{success}</p>}
-
-        <button type="submit" className="tenant-pay-btn" disabled={isSubmitting}>
-          {isSubmitting ? 'Updating...' : 'Update Password'}
-        </button>
-      </form>
     </section>
   );
 }

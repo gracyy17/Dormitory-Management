@@ -42,7 +42,7 @@ function AdminLogin() {
       <div className="login-card">
         <div className="login-header">
           <div className="login-logo">🏢</div>
-          <h1 className="login-title">DormC</h1>
+          <h1 className="login-title">MZ Dormitory</h1>
           <p className="login-subtitle">Dormitory Management System</p>
         </div>
 
@@ -54,7 +54,7 @@ function AdminLogin() {
               <input
                 id="email"
                 type="email"
-                placeholder="admin@dormc.com"
+                placeholder="admin@mzdormitory.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

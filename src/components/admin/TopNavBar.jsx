@@ -3,6 +3,17 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/firebase';
+import {
+  BellIcon,
+  CardIcon,
+  MenuIcon,
+  MoonIcon,
+  ReceiptIcon,
+  SearchIcon,
+  SunIcon,
+  UserIcon,
+  WrenchIcon,
+} from '../common/LineIcons';
 
 const parseDate = (value) => {
   if (!value) return null;
@@ -11,7 +22,7 @@ const parseDate = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-function TopNavBar({ onMenuToggle }) {
+function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [lastSeenAt, setLastSeenAt] = useState(0);
@@ -77,7 +88,7 @@ function TopNavBar({ onMenuToggle }) {
       .filter((payment) => String(payment.status || '').toLowerCase() === 'pending')
       .map((payment) => ({
         id: `payment-${payment.id}`,
-        icon: '💳',
+        icon: <CardIcon className="ui-icon" size={16} />,
         title: 'Payment review needed',
         detail: `${payment.tenantEmail || 'Tenant'} | ${payment.billingMonth || '-'}`,
         status: 'Pending',
@@ -96,7 +107,7 @@ function TopNavBar({ onMenuToggle }) {
       })
       .map((due) => ({
         id: `due-${due.id}`,
-        icon: '🧾',
+        icon: <ReceiptIcon className="ui-icon" size={16} />,
         title: 'Due requires action',
         detail: `${due.tenantEmail || 'Tenant'} | ${due.billingMonth || '-'} | ${due.roomNo || '-'}`,
         status: String(due.status || 'Pending'),
@@ -111,7 +122,7 @@ function TopNavBar({ onMenuToggle }) {
       })
       .map((request) => ({
         id: `maintenance-${request.id}`,
-        icon: '🔧',
+        icon: <WrenchIcon className="ui-icon" size={16} />,
         title: 'Maintenance request',
         detail: `${request.tenantEmail || 'Tenant'} | ${request.issue || request.description || 'No issue detail'}`,
         status: String(request.status || 'Pending'),
@@ -133,15 +144,24 @@ function TopNavBar({ onMenuToggle }) {
     <div className="top-navbar">
       <div className="navbar-left">
         <button className="menu-toggle" onClick={onMenuToggle}>
-          ☰
+          <MenuIcon className="ui-icon" size={18} />
         </button>
         <div className="search-box">
           <input type="text" placeholder="Search rooms, tenants, payments..." />
-          <span className="search-icon">🔍</span>
+          <span className="search-icon"><SearchIcon className="ui-icon" size={16} /></span>
         </div>
       </div>
 
       <div className="navbar-right">
+        <button
+          className="theme-toggle-btn"
+          onClick={onToggleTheme}
+          title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {isDarkMode ? <SunIcon className="ui-icon" size={16} /> : <MoonIcon className="ui-icon" size={16} />}
+        </button>
+
         <div className="profile-menu">
           <button
             className="notification-btn"
@@ -157,7 +177,7 @@ function TopNavBar({ onMenuToggle }) {
               }
             }}
           >
-            🔔
+            <BellIcon className="ui-icon" size={17} />
             {unreadNotifications > 0 && <span className="badge">{unreadNotifications}</span>}
           </button>
 
@@ -200,7 +220,7 @@ function TopNavBar({ onMenuToggle }) {
               setShowNotifications(false);
             }}
           >
-            👤
+            <UserIcon className="ui-icon" size={16} />
             <span className="user-name">{user?.email || 'Admin User'}</span>
           </button>
 

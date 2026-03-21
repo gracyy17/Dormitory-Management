@@ -1,11 +1,16 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
-import SummaryCard from '../common/SummaryCard';
-import DataTable from '../common/DataTable';
-import RecentActivity from '../common/RecentActivity';
-import StatusBadge from '../common/StatusBadge';
 import { db } from '../../lib/firebase';
+import {
+  CardIcon,
+  CheckCircleIcon,
+  HomeIcon,
+  PulseIcon,
+  UserIcon,
+  UsersIcon,
+  XCircleIcon,
+} from '../common/LineIcons';
 
 const formatPeso = (value) => `P${Number(value || 0).toLocaleString('en-PH')}`;
 
@@ -26,6 +31,14 @@ const timeAgo = (value) => {
   if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
   const days = Math.floor(hours / 24);
   return `${days} day${days > 1 ? 's' : ''} ago`;
+};
+
+const statusTone = (value) => {
+  const status = String(value || '').toLowerCase();
+  if (status.includes('active') || status.includes('approved') || status.includes('available')) return 'is-positive';
+  if (status.includes('pending') || status.includes('review')) return 'is-warning';
+  if (status.includes('rejected') || status.includes('overdue')) return 'is-negative';
+  return 'is-neutral';
 };
 
 function Dashboard() {
@@ -131,8 +144,18 @@ function Dashboard() {
     const month = now.getMonth();
     const year = now.getFullYear();
 
-    const pending = payments.filter((payment) => payment.status === 'Pending');
-    const pendingAmount = pending.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const pendingPaymentRecords = payments.filter((payment) => {
+      const status = String(payment.status || '').toLowerCase();
+      return status === 'pending' || status === 'pending-review' || status === 'needs-review';
+    });
+
+    const pendingDueRecords = dues.filter((due) => {
+      const status = String(due.status || '').toLowerCase();
+      return status === 'pending' || status === 'overdue';
+    });
+
+    const pendingAmount = [...pendingPaymentRecords, ...pendingDueRecords]
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
     const approved = payments.filter((payment) => {
       if (payment.status !== 'Approved' || typeof payment.reviewedAt?.toDate !== 'function') return false;
@@ -143,52 +166,52 @@ function Dashboard() {
     const approvedAmount = approved.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
 
     return {
-      pendingPayments: pending.length,
+      pendingPayments: pendingPaymentRecords.length + pendingDueRecords.length,
       pendingPaymentAmount: pendingAmount,
       approvedThisMonth: approvedAmount,
     };
-  }, [payments]);
+  }, [dues, payments]);
 
   const summaryCards = [
     {
-      icon: '🏠',
+      icon: <HomeIcon className="ui-icon" size={24} />,
       title: 'Total Rooms',
       value: String(totalRooms),
       subtitle: `${totalBeds} total beds`,
       color: 'blue',
-      trend: { type: 'neutral', text: 'Live Firestore data' },
+      trend: 'Live Firestore data',
     },
     {
-      icon: '✅',
+      icon: <CheckCircleIcon className="ui-icon" size={24} />,
       title: 'Available Beds',
       value: String(availableBeds),
       subtitle: `${occupancyRate}% occupancy`,
       color: 'green',
-      trend: { type: 'positive', text: `${availableBeds} beds currently open` },
+      trend: `${availableBeds} beds currently open`,
     },
     {
-      icon: '👥',
+      icon: <UsersIcon className="ui-icon" size={24} />,
       title: 'Occupied Beds',
       value: String(occupiedBeds),
       subtitle: `${tenants.length} tenant accounts`,
       color: 'cyan',
-      trend: { type: 'neutral', text: `${occupancyRate}% occupied` },
+      trend: `${occupancyRate}% occupied`,
     },
     {
-      icon: '💳',
+      icon: <CardIcon className="ui-icon" size={24} />,
       title: 'Pending Payments',
       value: formatPeso(pendingPaymentAmount),
       subtitle: `${pendingPayments} submissions waiting`,
       color: 'orange',
-      trend: { type: pendingPayments > 0 ? 'negative' : 'positive', text: pendingPayments > 0 ? 'Needs review' : 'Queue is clear' },
+      trend: pendingPayments > 0 ? 'Needs review' : 'Queue is clear',
     },
     {
-      icon: '📈',
+      icon: <PulseIcon className="ui-icon" size={24} />,
       title: 'Monthly Revenue',
       value: formatPeso(approvedThisMonth),
       subtitle: 'Approved payments this month',
       color: 'purple',
-      trend: { type: 'positive', text: 'Auto-calculated from reviews' },
+      trend: 'Auto-calculated from reviews',
     },
   ];
 
@@ -259,7 +282,11 @@ function Dashboard() {
     const paymentActivities = payments
       .map((payment) => ({
         key: `payment-${payment.id}`,
-        icon: payment.status === 'Approved' ? '✅' : payment.status === 'Rejected' ? '❌' : '💳',
+        icon: payment.status === 'Approved'
+          ? <CheckCircleIcon className="ui-icon" size={16} />
+          : payment.status === 'Rejected'
+            ? <XCircleIcon className="ui-icon" size={16} />
+            : <CardIcon className="ui-icon" size={16} />,
         message: `${payment.tenantEmail || 'Tenant'} payment ${String(payment.status || 'submitted').toLowerCase()}`,
         time: timeAgo(payment.reviewedAt || payment.submittedAt),
         status: payment.status || 'Pending',
@@ -269,7 +296,7 @@ function Dashboard() {
     const tenantActivities = tenants
       .map((tenant) => ({
         key: `tenant-${tenant.id}`,
-        icon: '👤',
+        icon: <UserIcon className="ui-icon" size={16} />,
         message: `New tenant account: ${tenant.fullName || tenant.email || tenant.id}`,
         time: timeAgo(tenant.createdAt),
         status: 'Active',
@@ -280,7 +307,7 @@ function Dashboard() {
       .filter((room) => room.updatedAt || room.createdAt)
       .map((room) => ({
         key: `room-${room.id}`,
-        icon: '🏠',
+        icon: <HomeIcon className="ui-icon" size={16} />,
         message: `Room ${room.roomNo || room.id} updated`,
         time: timeAgo(room.updatedAt || room.createdAt),
         status: room.status || 'Updated',
@@ -297,11 +324,7 @@ function Dashboard() {
     { key: 'id', label: 'ID' },
     { key: 'room', label: 'Room' },
     { key: 'checkIn', label: 'Check-in Date' },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (status) => <StatusBadge status={status} type={status.toLowerCase()} />
-    }
+    { key: 'status', label: 'Status' }
   ];
 
   const dueColumns = [
@@ -309,12 +332,37 @@ function Dashboard() {
     { key: 'room', label: 'Room' },
     { key: 'dueDate', label: 'Due Date' },
     { key: 'amount', label: 'Amount' },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (status) => <StatusBadge status={status} type={status.toLowerCase().replace(' ', '-')} />
-    }
+    { key: 'status', label: 'Status' }
   ];
+
+  const topMetricCards = summaryCards.slice(0, 4);
+  const monthlyRevenueCard = summaryCards[4];
+  const quickActivityFeed = recentActivities.slice(0, 4);
+
+  const performanceBars = useMemo(() => {
+    const labels = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    const counts = Array(7).fill(0);
+
+    recentActivities.forEach((item) => {
+      if (!item.ts) return;
+      const dayIndex = (new Date(item.ts).getDay() + 6) % 7;
+      counts[dayIndex] += 1;
+    });
+
+    const maxCount = Math.max(...counts, 1);
+    return labels.map((label, index) => {
+      const ratio = counts[index] / maxCount;
+      return {
+        label,
+        count: counts[index],
+        height: Math.max(Math.round(ratio * 100), 10),
+      };
+    });
+  }, [recentActivities]);
+
+  const recentTenantActivityRows = latestTenants.slice(0, 4);
+  const latestTenantRows = latestTenants.slice(0, 3);
+  const dueDateRows = upcomingDueDates.slice(0, 3);
 
   return (
     <AdminLayout>
@@ -327,40 +375,159 @@ function Dashboard() {
         {isLoading && <p>Loading dashboard...</p>}
         {error && <p style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</p>}
 
-        {/* Summary Cards */}
-        <section className="summary-section">
-          <div className="cards-grid">
-            {summaryCards.map((card, idx) => (
-              <SummaryCard key={idx} {...card} />
-            ))}
-          </div>
+        <section className="dashboard-kpi-grid">
+          {topMetricCards.map((card) => (
+            <article key={card.title} className="dashboard-surface dashboard-kpi-card">
+              <div className={`dashboard-kpi-icon ${card.color}`}>{card.icon}</div>
+              <div className="dashboard-kpi-content">
+                <h3>{card.title}</h3>
+                <p className="dashboard-kpi-value">{card.value}</p>
+                <p className="dashboard-kpi-subtitle">{card.subtitle}</p>
+                {card.trend && <p className="dashboard-kpi-trend">{card.trend}</p>}
+              </div>
+            </article>
+          ))}
         </section>
 
-        {/* Main Content */}
-        <section className="dashboard-content">
-          {/* Recent Activity */}
-          <div className="dashboard-widget">
-            <div className="widget-header">
+        <section className="dashboard-middle-grid">
+          <article className="dashboard-surface dashboard-revenue-card">
+            <div className={`dashboard-kpi-icon ${monthlyRevenueCard.color}`}>{monthlyRevenueCard.icon}</div>
+            <div>
+              <h3>{monthlyRevenueCard.title}</h3>
+              <p className="dashboard-kpi-value">{monthlyRevenueCard.value}</p>
+              <p className="dashboard-kpi-subtitle">{monthlyRevenueCard.subtitle}</p>
+              {monthlyRevenueCard.trend && <p className="dashboard-kpi-trend">{monthlyRevenueCard.trend}</p>}
+            </div>
+          </article>
+
+          <article className="dashboard-surface dashboard-performance">
+            <div className="widget-header compact">
+              <h2>Performance Overview</h2>
+              <div className="dashboard-segmented-pill">
+                <button type="button" className="active">Weekly</button>
+                <button type="button">Monthly</button>
+              </div>
+            </div>
+            <div className="dashboard-chart-area">
+              {performanceBars.map((bar) => (
+                <div key={bar.label} className="dashboard-bar-item">
+                  <span className="dashboard-bar-value">{bar.count > 0 ? `${bar.count}` : ''}</span>
+                  <div className="dashboard-bar-track">
+                    <div className="dashboard-bar-fill" style={{ height: `${bar.height}%` }} />
+                  </div>
+                  <span className="dashboard-bar-label">{bar.label}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="dashboard-surface dashboard-quick-activity">
+            <div className="widget-header compact">
               <h2>Recent Activity</h2>
             </div>
-            <RecentActivity activities={recentActivities} limit={6} />
-          </div>
+            <div className="dashboard-activity-list">
+              {quickActivityFeed.length === 0 && <p className="table-empty">No recent activity yet</p>}
+              {quickActivityFeed.map((item) => (
+                <div key={item.key} className="dashboard-activity-item">
+                  <span className="dashboard-activity-icon">{item.icon}</span>
+                  <div className="dashboard-activity-text">
+                    <p>{item.message}</p>
+                    <small>{item.time}</small>
+                  </div>
+                  <span className={`dashboard-pill ${statusTone(item.status)}`}>{item.status}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
 
-          {/* Latest Tenants */}
-          <div className="dashboard-widget">
-            <div className="widget-header">
+        <section className="dashboard-table-stack">
+          <article className="dashboard-surface dashboard-table-card">
+            <div className="widget-header compact">
+              <h2>Recent Activity</h2>
+            </div>
+            <div className="table-container">
+              <table className="data-table striped dashboard-table">
+                <thead>
+                  <tr>
+                    {tenantColumns.map((col) => (
+                      <th key={col.key}>{col.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentTenantActivityRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.name}</td>
+                      <td>{row.id}</td>
+                      <td>{row.room}</td>
+                      <td>{row.checkIn}</td>
+                      <td><span className={`dashboard-pill ${statusTone(row.status)}`}>{row.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {recentTenantActivityRows.length === 0 && <p className="table-empty">No data available</p>}
+            </div>
+          </article>
+
+          <article className="dashboard-surface dashboard-table-card">
+            <div className="widget-header compact">
               <h2>Latest Tenants</h2>
             </div>
-            <DataTable columns={tenantColumns} data={latestTenants} />
-          </div>
+            <div className="table-container">
+              <table className="data-table striped dashboard-table">
+                <thead>
+                  <tr>
+                    {tenantColumns.map((col) => (
+                      <th key={col.key}>{col.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {latestTenantRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.name}</td>
+                      <td>{row.id}</td>
+                      <td>{row.room}</td>
+                      <td>{row.checkIn}</td>
+                      <td><span className={`dashboard-pill ${statusTone(row.status)}`}>{row.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {latestTenantRows.length === 0 && <p className="table-empty">No data available</p>}
+            </div>
+          </article>
 
-          {/* Upcoming Due Dates */}
-          <div className="dashboard-widget">
-            <div className="widget-header">
+          <article className="dashboard-surface dashboard-table-card">
+            <div className="widget-header compact">
               <h2>Upcoming Due Dates</h2>
             </div>
-            <DataTable columns={dueColumns} data={upcomingDueDates} />
-          </div>
+            <div className="table-container">
+              <table className="data-table striped dashboard-table">
+                <thead>
+                  <tr>
+                    {dueColumns.map((col) => (
+                      <th key={col.key}>{col.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dueDateRows.map((row, index) => (
+                    <tr key={`${row.tenant}-${row.dueDate}-${index}`}>
+                      <td>{row.tenant}</td>
+                      <td>{row.room}</td>
+                      <td>{row.dueDate}</td>
+                      <td>{row.amount}</td>
+                      <td><span className={`dashboard-pill ${statusTone(row.status)}`}>{row.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {dueDateRows.length === 0 && <p className="table-empty">No data available</p>}
+            </div>
+          </article>
         </section>
       </div>
     </AdminLayout>

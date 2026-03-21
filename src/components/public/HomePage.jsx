@@ -1,85 +1,134 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import '../../styles/PublicWebsite.css';
+import { BrandIcon, CardIcon, HomeIcon, MoonIcon, ShieldIcon, SunIcon, UsersIcon, WifiIcon } from '../common/LineIcons';
 
 function HomePage() {
-  const roomTypes = [
-    { name: 'Standard Room', rate: '₱5,000 / month', details: '2 beds • Shared bathroom • Wi-Fi' },
-    { name: 'Deluxe Room', rate: '₱6,500 / month', details: '2 beds • Private bathroom • Study desk' },
-    { name: 'Suite Room', rate: '₱7,500 / month', details: '3 beds • Larger space • Premium floor' },
+  const amenities = ['High-Speed Wi-Fi', 'CCTV Coverage'];
+  const roomInclusions = [
+    '6 pax per room',
+    'Double deck with foam and cabinet',
+    '1.5 HP aircondition (inverter)',
+    'With C.R. per room',
+    'With ref per room',
+    'Free gas stove',
+    'Free Wi-Fi 24/7',
+  ];
+  const quickFacts = [
+    { label: 'Capacity', value: '6 Pax / Room' },
+    { label: 'Aircon', value: '1.5 HP Inverter' },
+    { label: 'Connectivity', value: 'Wi-Fi 24/7' },
+    { label: 'Kitchen', value: 'Free Gas Stove' },
   ];
 
-  const amenities = ['24/7 Security', 'High-Speed Wi-Fi', 'Laundry Area', 'Study Lounge', 'CCTV Coverage', 'Visitor Parking'];
+  const [darkMode, setDarkMode] = useState(() => window.localStorage.getItem('public_dark_mode') === 'true');
+
+  const toggleTheme = () => {
+    setDarkMode((prev) => {
+      const next = !prev;
+      window.localStorage.setItem('public_dark_mode', String(next));
+      return next;
+    });
+  };
 
   return (
-    <div className="public-site">
+    <div className={`public-site ${darkMode ? 'dark-mode' : ''}`}>
+      <div className="ambient-orb orb-a" />
+      <div className="ambient-orb orb-b" />
+
       <header className="public-nav">
         <div className="brand">
-          <span className="brand-icon">🏢</span>
-          <span>DormC Residences</span>
+          <span className="brand-icon"><BrandIcon className="ui-icon" size={20} /></span>
+          <span>MZ Dormitory</span>
         </div>
         <div className="nav-actions">
+          <button className="public-theme-toggle" onClick={toggleTheme} aria-label="Toggle public theme">
+            {darkMode ? <SunIcon className="ui-icon" size={15} /> : <MoonIcon className="ui-icon" size={15} />}
+          </button>
           <Link className="nav-link" to="/tenant/login">Tenant Login</Link>
-          <Link className="btn btn-primary" to="/client/login">Client/Admin Login</Link>
         </div>
       </header>
 
-      <main>
+      <main className="public-main">
         <section className="hero">
-          <div className="hero-content">
-            <p className="hero-kicker">Welcome to our dormitory community</p>
-            <h1>Safe, clean, and student-friendly dormitory living.</h1>
+          <div className="hero-content glass-panel reveal-up">
+            <p className="hero-kicker">Welcome to MZ Dormitory</p>
+            <h1>Comfortable spaces built for focused student living.</h1>
             <p>
-              Find room options, view rates, and contact us online. Existing tenants can log in to check payment dues and requests,
-              while the client/admin has a private dashboard to manage website and dorm records.
+              Enjoy a clean, secure, and complete room setup with reliable essentials for daily student life.
             </p>
+            <div className="hero-tags">
+              <span><ShieldIcon className="ui-icon" size={14} /> Secured Access</span>
+              <span><WifiIcon className="ui-icon" size={14} /> Connected Spaces</span>
+              <span><UsersIcon className="ui-icon" size={14} /> Tenant-Centered</span>
+            </div>
             <div className="hero-cta">
-              <a className="btn btn-primary" href="#rooms">View Rooms</a>
-              <Link className="btn btn-secondary" to="/tenant/login">Tenant Portal</Link>
+              <Link className="btn btn-primary" to="/tenant/login">Tenant Portal</Link>
             </div>
           </div>
-          <div className="hero-panel">
-            <h3>Quick Access</h3>
-            <ul>
-              <li><strong>Visitors:</strong> Browse rooms and amenities</li>
-              <li><strong>Tenants:</strong> Login for dues and requests</li>
-              <li><strong>Client:</strong> Login to admin dashboard</li>
-            </ul>
-          </div>
+          <aside className="hero-panel glass-panel reveal-up delay-1">
+            <h3>At A Glance</h3>
+            <div className="pulse-grid">
+              {quickFacts.map((fact) => (
+                <article key={fact.label}>
+                  <p>{fact.label}</p>
+                  <strong>{fact.value}</strong>
+                </article>
+              ))}
+            </div>
+          </aside>
         </section>
 
-        <section id="rooms" className="section">
-          <div className="section-head">
-            <h2>Room Options</h2>
-            <p>Transparent rates and clear inclusions.</p>
-          </div>
-          <div className="card-grid">
-            {roomTypes.map((room) => (
-              <article key={room.name} className="public-card">
-                <h3>{room.name}</h3>
-                <p className="rate">{room.rate}</p>
-                <p className="details">{room.details}</p>
-              </article>
-            ))}
-          </div>
+        <section className="feature-strip reveal-up delay-2">
+          <article className="feature-chip">
+            <HomeIcon className="ui-icon" size={15} />
+            <span>Own C.R. and Ref per room</span>
+          </article>
+          <article className="feature-chip">
+            <CardIcon className="ui-icon" size={15} />
+            <span>Transparent monthly rental setup</span>
+          </article>
+          <article className="feature-chip">
+            <UsersIcon className="ui-icon" size={15} />
+            <span>Balanced room occupancy model</span>
+          </article>
         </section>
 
-        <section className="section">
-          <div className="section-head">
-            <h2>Amenities</h2>
-            <p>Everything students need in one place.</p>
-          </div>
-          <div className="amenities-grid">
-            {amenities.map((item) => (
-              <div key={item} className="amenity-item">✅ {item}</div>
-            ))}
-          </div>
+        <section className="section section-grid">
+          <article className="room-offer glass-panel reveal-up delay-3">
+            <div className="section-head">
+              <h2>Room Inclusions</h2>
+              <p>Clear and complete inclusions for each room.</p>
+            </div>
+            <div className="room-offer-card">
+              <ul>
+                {roomInclusions.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </article>
+
+          <article className="amenities-panel glass-panel reveal-up delay-4">
+            <div className="section-head">
+              <h2>Amenities</h2>
+              <p>Core essentials designed for comfort and focus.</p>
+            </div>
+            <div className="amenities-grid">
+              {amenities.map((item) => (
+                <div key={item} className="amenity-item">
+                  <span className="amenity-dot" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </article>
         </section>
 
-        <section className="section contact">
+        <section className="section contact glass-panel reveal-up delay-5">
           <div>
             <h2>Contact & Inquiries</h2>
-            <p>Email: dormc.residences@example.com</p>
+            <p>Email: mzdormitory@example.com</p>
             <p>Mobile: +63 912 345 6789</p>
           </div>
           <Link className="btn btn-primary" to="/tenant/login">Go to Tenant Login</Link>

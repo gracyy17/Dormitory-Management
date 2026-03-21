@@ -69,6 +69,7 @@ async function processDueReminders() {
 
   let checked = 0;
   let emailSent = 0;
+  const emailProviderConfigured = Boolean(EMAIL_API_URL && EMAIL_API_KEY);
 
   for (const dueDoc of dueSnapshot.docs) {
     checked += 1;
@@ -125,8 +126,8 @@ async function processDueReminders() {
     );
   }
 
-  logger.info('Due reminders complete', { checked, emailSent });
-  return { checked, emailSent };
+  logger.info('Due reminders complete', { checked, emailSent, emailProviderConfigured });
+  return { checked, emailSent, emailProviderConfigured };
 }
 
 async function isAdminUser(uid) {
@@ -149,6 +150,7 @@ exports.sendDueRemindersScheduled = onSchedule(
 exports.sendDueRemindersNow = onRequest(
   {
     region: 'asia-southeast1',
+    cors: true,
   },
   async (req, res) => {
     if (req.method !== 'POST') {

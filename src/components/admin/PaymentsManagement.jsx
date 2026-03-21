@@ -138,17 +138,40 @@ function PaymentsManagement() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${idToken}`,
         },
+        body: JSON.stringify({ forceSend: true }),
       });
 
-      const result = await response.json();
+      const rawText = await response.text();
+      let result = {};
+
+      try {
+        result = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        result = { message: rawText || '' };
+      }
+
       if (!response.ok) {
-        setReminderMessage(result?.message || 'Unable to send reminder emails right now.');
+        const backendMessage = result?.message || `Request failed with status ${response.status}.`;
+        setReminderMessage(`Unable to send reminder emails right now. ${backendMessage}`);
         return;
       }
 
-      setReminderMessage(`Reminder run complete: ${result.emailSent || 0} emails sent from ${result.checked || 0} dues checked.`);
-    } catch {
-      setReminderMessage('Unable to send reminder emails right now.');
+      setReminderMessage(
+        `Reminder run complete: ${result.emailSent || 0} emails sent from ${result.checked || 0} dues checked (eligible: ${result.eligible || 0}, skipped: ${result.skipped || 0}, manual force send: ${result.forceSend ? 'yes' : 'no'}).`
+      );
+    } catch (error) {
+      const rawMessage = String(error?.message || '').trim();
+      const isFailedToFetch = rawMessage.toLowerCase().includes('failed to fetch');
+
+      if (isFailedToFetch) {
+        setReminderMessage(
+          `Unable to send reminder emails right now. Failed to fetch. This usually means the reminder function URL is missing/unreachable or blocked by CORS. Endpoint: ${reminderEndpoint}`
+        );
+        return;
+      }
+
+      const details = rawMessage ? ` ${rawMessage}` : '';
+      setReminderMessage(`Unable to send reminder emails right now.${details}`);
     } finally {
       setIsSendingReminder(false);
     }
@@ -159,28 +182,15 @@ function PaymentsManagement() {
       key: 'tenantEmail',
       label: 'Tenant',
       render: (email, row) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="payment-tenant-cell">
           {row.tenantProfileImageUrl ? (
             <img
               src={row.tenantProfileImageUrl}
               alt={email || 'Tenant'}
-              style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+              className="payment-tenant-avatar"
             />
           ) : (
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: '#e5e7eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 12,
-                fontWeight: 700,
-                color: '#374151',
-              }}
-            >
+            <div className="payment-tenant-avatar payment-tenant-avatar-fallback">
               {(email || '?').slice(0, 1).toUpperCase()}
             </div>
           )}
@@ -233,6 +243,8 @@ function PaymentsManagement() {
     },
   ];
 
+  const loadingRows = Array.from({ length: 6 });
+
   return (
     <AdminLayout>
       <div className="rooms-management-page">
@@ -245,14 +257,44 @@ function PaymentsManagement() {
           <div className="widget-header">
             <h2>Review Queue ({reviewItems.length})</h2>
             <button className="btn-primary" onClick={handleSendRemindersNow} disabled={isSendingReminder}>
-              {isSendingReminder ? 'Sending...' : 'Send Reminder Emails Now'}
+              {isSendingReminder ? (
+                <span className="loading-inline">
+                  <span className="loading-spinner" aria-hidden="true" />
+                  Sending reminders...
+                </span>
+              ) : 'Send Reminder Emails Now'}
             </button>
           </div>
 
-          {reminderMessage && <p style={{ marginBottom: 12 }}>{reminderMessage}</p>}
+          {reminderMessage && <p className="admin-feedback">{reminderMessage}</p>}
 
-          {isLoading && <p>Loading payments...</p>}
-          {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
+          {isLoading && (
+            <div className="payments-loading-shell" role="status" aria-live="polite">
+              <div className="payments-loading-head">
+                <span className="loading-spinner" aria-hidden="true" />
+                <div>
+                  <p className="payments-loading-title">Preparing payment review queue</p>
+                  <p className="payments-loading-subtitle">Fetching receipts, dues, and verification status...</p>
+                </div>
+              </div>
+              <div className="payments-loading-skeleton">
+                {loadingRows.map((_, index) => (
+                  <div
+                    key={`loading-row-${index}`}
+                    className="payments-loading-row"
+                    style={{ animationDelay: `${index * 0.07}s` }}
+                  >
+                    <span className="skeleton-avatar" />
+                    <span className="skeleton-bar long" />
+                    <span className="skeleton-bar" />
+                    <span className="skeleton-pill" />
+                    <span className="skeleton-pill" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {error && <p className="admin-feedback is-error">{error}</p>}
           {!isLoading && <DataTable columns={columns} data={reviewItems} actions={actions} />}
         </section>
       </div>

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { Link } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import DataTable from '../common/DataTable';
 import Modal from '../common/Modal';
@@ -589,17 +588,6 @@ function TenantsManagement({ section = 'all' }) {
           <h1>Tenants Management</h1>
           <p className="page-subtitle">Create tenant login credentials from the admin portal.</p>
         </div>
-
-        <section className="filters-section" style={{ marginBottom: 16 }}>
-          <div className="filters-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-            <Link className={`btn-secondary ${section === 'create' ? 'active' : ''}`} to="/admin/tenants/create">
-              Create Tenant Account
-            </Link>
-            <Link className={`btn-secondary ${section === 'overview' ? 'active' : ''}`} to="/admin/tenants/overview">
-              Tenant Payment Overview
-            </Link>
-          </div>
-        </section>
 
         {section !== 'overview' && (
         <section className="dashboard-widget">

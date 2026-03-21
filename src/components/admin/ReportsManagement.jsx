@@ -5,6 +5,7 @@ import SummaryCard from '../common/SummaryCard';
 import DataTable from '../common/DataTable';
 import StatusBadge from '../common/StatusBadge';
 import { db } from '../../lib/firebase';
+import { CardIcon, HomeIcon, PulseIcon, UsersIcon } from '../common/LineIcons';
 
 const formatPeso = (value) => `P${Number(value || 0).toLocaleString('en-PH')}`;
 
@@ -53,28 +54,28 @@ function ReportsManagement() {
 
     return [
       {
-        icon: '🛏️',
+        icon: <HomeIcon className="ui-icon" size={24} />,
         title: 'Total Bed Capacity',
         value: String(totalBeds),
         subtitle: `${rooms.length} rooms`,
         color: 'blue',
       },
       {
-        icon: '👥',
+        icon: <UsersIcon className="ui-icon" size={24} />,
         title: 'Total Tenants',
         value: String(tenants),
         subtitle: 'Active tenant accounts',
         color: 'cyan',
       },
       {
-        icon: '🧾',
+        icon: <CardIcon className="ui-icon" size={24} />,
         title: 'Outstanding Dues',
         value: formatPeso(pendingDuesAmount),
         subtitle: 'Pending and overdue dues',
         color: 'orange',
       },
       {
-        icon: '💰',
+        icon: <PulseIcon className="ui-icon" size={24} />,
         title: 'Approved Collections',
         value: formatPeso(approvedPayments),
         subtitle: 'Based on approved payment uploads',
@@ -154,7 +155,7 @@ function ReportsManagement() {
           <p className="page-subtitle">Financial and occupancy reports generated from live records.</p>
         </div>
 
-        {error && <p style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</p>}
+        {error && <p className="admin-feedback is-error">{error}</p>}
 
         <section className="summary-section">
           <div className="cards-grid">

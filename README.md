@@ -71,6 +71,22 @@ Replace placeholder content and connect to your backend as needed.
 - `sendDueRemindersNow`: manual HTTP trigger for testing.
 - Admin UI trigger is available in `/admin/payments` via "Send Reminder Emails Now".
 
+## REST Email Backend (Alternative)
+- A standalone REST/API email backend is included at `email-backend/`.
+- Use this when Firebase Functions deployment is unavailable or when you prefer a separate backend.
+
+### Quick start
+1. `cd email-backend`
+2. `npm install`
+3. Copy `email-backend/.env.example` to `email-backend/.env`
+4. Fill SMTP and Firebase service account values
+5. Start backend: `npm run dev`
+
+### Connect frontend
+- Set in root `.env`:
+  - `VITE_SEND_DUE_REMINDERS_URL=http://localhost:5001/api/reminders/run`
+- For production, replace with your deployed backend URL.
+
 ### Data expected by reminder job
 - Collection: `dues`
 - Each due document should include:
