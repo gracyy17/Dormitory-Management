@@ -3,8 +3,6 @@ import {
   collection,
   doc,
   onSnapshot,
-  orderBy,
-  query,
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
@@ -17,6 +15,8 @@ import { auth, db } from '../../lib/firebase';
 function PaymentsManagement() {
   const { user } = useAuth();
   const [payments, setPayments] = useState([]);
+  const [dues, setDues] = useState([]);
+  const [reviewItems, setReviewItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isSendingReminder, setIsSendingReminder] = useState(false);
@@ -34,17 +34,15 @@ function PaymentsManagement() {
       return undefined;
     }
 
-    const paymentsQuery = query(collection(db, 'payments'), orderBy('submittedAt', 'desc'));
-
-    const unsubscribe = onSnapshot(
-      paymentsQuery,
+    const unsubscribePayments = onSnapshot(
+      collection(db, 'payments'),
       (snapshot) => {
         const records = snapshot.docs.map((paymentDoc) => ({
           id: paymentDoc.id,
+          sourceType: 'payment',
           ...paymentDoc.data(),
         }));
         setPayments(records);
-        setIsLoading(false);
       },
       () => {
         setError('Unable to load payments right now.');
@@ -52,18 +50,66 @@ function PaymentsManagement() {
       }
     );
 
-    return unsubscribe;
+    const unsubscribeDues = onSnapshot(
+      collection(db, 'dues'),
+      (snapshot) => {
+        const records = snapshot.docs.map((dueDoc) => ({
+          id: dueDoc.id,
+          sourceType: 'due',
+          ...dueDoc.data(),
+        }));
+        setDues(records);
+        setIsLoading(false);
+      },
+      () => {
+        setError('Unable to load dues right now.');
+        setIsLoading(false);
+      }
+    );
+
+    return () => {
+      unsubscribePayments();
+      unsubscribeDues();
+    };
   }, []);
 
-  const handleReview = async (payment, nextStatus) => {
+  useEffect(() => {
+    const paymentItems = payments.map((item) => ({
+      ...item,
+      sortAt: item.submittedAt?.toDate?.()?.getTime?.() || 0,
+    }));
+
+    const dueItems = dues.map((item) => ({
+      ...item,
+      method: item.method || 'Billing',
+      referenceNumber: item.referenceNumber || '-',
+      receiptUrl: item.receiptUrl || '',
+      verificationReason: item.verificationReason || 'Billing record',
+      sortAt: item.updatedAt?.toDate?.()?.getTime?.() || item.createdAt?.toDate?.()?.getTime?.() || 0,
+    }));
+
+    const merged = [...paymentItems, ...dueItems].sort((a, b) => b.sortAt - a.sortAt);
+    setReviewItems(merged);
+  }, [payments, dues]);
+
+  const handleReview = async (item, nextStatus) => {
     if (!db || !user?.uid) return;
 
     try {
-      await updateDoc(doc(db, 'payments', payment.id), {
-        status: nextStatus,
-        reviewedBy: user.uid,
-        reviewedAt: serverTimestamp(),
-      });
+      if (item.sourceType === 'payment') {
+        await updateDoc(doc(db, 'payments', item.id), {
+          status: nextStatus,
+          reviewedBy: user.uid,
+          reviewedAt: serverTimestamp(),
+        });
+      } else {
+        await updateDoc(doc(db, 'dues', item.id), {
+          status: nextStatus === 'Approved' ? 'Paid' : 'Overdue',
+          updatedBy: user.uid,
+          updatedByEmail: user.email || null,
+          updatedAt: serverTimestamp(),
+        });
+      }
     } catch {
       setError('Unable to update payment status.');
     }
@@ -197,7 +243,7 @@ function PaymentsManagement() {
 
         <section className="dashboard-widget">
           <div className="widget-header">
-            <h2>Submitted Payments ({payments.length})</h2>
+            <h2>Review Queue ({reviewItems.length})</h2>
             <button className="btn-primary" onClick={handleSendRemindersNow} disabled={isSendingReminder}>
               {isSendingReminder ? 'Sending...' : 'Send Reminder Emails Now'}
             </button>
@@ -207,7 +253,7 @@ function PaymentsManagement() {
 
           {isLoading && <p>Loading payments...</p>}
           {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
-          {!isLoading && <DataTable columns={columns} data={payments} actions={actions} />}
+          {!isLoading && <DataTable columns={columns} data={reviewItems} actions={actions} />}
         </section>
       </div>
     </AdminLayout>

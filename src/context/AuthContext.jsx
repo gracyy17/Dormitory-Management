@@ -10,7 +10,7 @@ import {
   updatePassword,
 } from 'firebase/auth';
 import { deleteApp, initializeApp } from 'firebase/app';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db, firebaseConfig, isFirebaseConfigured } from '../lib/firebase';
 
 const AuthContext = createContext(null);
@@ -113,9 +113,15 @@ function AuthProvider({ children }) {
     email,
     password,
     fullName = '',
+    selectedRoomId = '',
     roomNo = '',
+    roomBed = null,
+    billingMonth = '',
+    dueDate = '',
+    amount = 0,
     phone = '',
     profileImageUrl = '',
+    profileImageDataUrl = '',
     notifyEmail = true,
   }) => {
     if (!isFirebaseConfigured || !auth || !db) {
@@ -124,6 +130,32 @@ function AuthProvider({ children }) {
 
     if (role !== 'admin') {
       throw new Error('Only admin accounts can create tenant accounts.');
+    }
+
+    if (!fullName.trim()) {
+      throw new Error('Tenant full name is required.');
+    }
+    if (!selectedRoomId || !roomNo.trim()) {
+      throw new Error('Assign an available room before creating tenant account.');
+    }
+    if (!billingMonth.trim() || !dueDate || Number(amount) <= 0 || Number.isNaN(Number(amount))) {
+      throw new Error('Billing details are required and amount must be greater than 0.');
+    }
+
+    const dueDateValue = new Date(dueDate);
+    if (Number.isNaN(dueDateValue.getTime())) {
+      throw new Error('Invalid due date.');
+    }
+
+    const duesSnapshot = await getDocs(collection(db, 'dues'));
+    const hasDuplicate = duesSnapshot.docs.some((dueDoc) => {
+      const data = dueDoc.data() || {};
+      return String(data.tenantEmail || '').toLowerCase() === String(email || '').toLowerCase()
+        && String(data.billingMonth || '').toLowerCase() === String(billingMonth || '').toLowerCase();
+    });
+
+    if (hasDuplicate) {
+      throw new Error('A due record for this tenant email and billing month already exists.');
     }
 
     const secondaryApp = initializeApp(firebaseConfig, `tenant-provision-${Date.now()}`);
@@ -136,13 +168,55 @@ function AuthProvider({ children }) {
         email,
         fullName,
         roomNo,
+        roomBed,
         phone,
-        profileImageUrl,
+        profileImageUrl: profileImageDataUrl ? '' : profileImageUrl,
+        profileImageDataUrl,
         notifyEmail,
         mustChangePassword: true,
         createdBy: user?.uid || null,
         createdAt: serverTimestamp(),
       });
+
+      if (selectedRoomId) {
+        await runTransaction(db, async (transaction) => {
+          const roomRef = doc(db, 'rooms', selectedRoomId);
+          const roomSnap = await transaction.get(roomRef);
+
+          if (!roomSnap.exists()) {
+            throw new Error('Selected room no longer exists. Please refresh and try again.');
+          }
+
+          const roomData = roomSnap.data() || {};
+          const capacity = Number(roomData.capacity || 0);
+          const occupiedBeds = Number(roomData.occupiedBeds || 0);
+
+          if (occupiedBeds >= capacity) {
+            throw new Error('Selected room is already full. Please choose another room.');
+          }
+
+          const nextOccupiedBeds = occupiedBeds + 1;
+          transaction.update(roomRef, {
+            occupiedBeds: nextOccupiedBeds,
+            status: nextOccupiedBeds >= capacity ? 'Occupied' : 'Occupied',
+            updatedAt: serverTimestamp(),
+          });
+        });
+      }
+
+      if (billingMonth && dueDate && Number(amount) > 0) {
+        await addDoc(collection(db, 'dues'), {
+          tenantUid: credential.user.uid,
+          tenantEmail: email,
+          roomNo,
+          billingMonth,
+          dueDate,
+          amount: Number(amount),
+          status: 'Pending',
+          createdAt: serverTimestamp(),
+          createdBy: user?.uid || null,
+        });
+      }
 
       await signOut(secondaryAuth);
 

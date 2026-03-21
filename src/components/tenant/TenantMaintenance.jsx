@@ -1,17 +1,54 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { addDoc, collection, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
 import DataTable from '../common/DataTable';
 import StatusBadge from '../common/StatusBadge';
+import { useAuth } from '../../context/AuthContext';
+import { db } from '../../lib/firebase';
 
 function TenantMaintenance() {
+  const { user } = useAuth();
   const [issueText, setIssueText] = useState('');
   const [submitStatus, setSubmitStatus] = useState('');
-  const [requests, setRequests] = useState([
-    { issue: 'Leaking faucet', createdAt: '2026-02-20', priority: 'Normal', status: 'Pending' },
-    { issue: 'Broken light bulb', createdAt: '2026-02-12', priority: 'Low', status: 'Paid' },
-    { issue: 'Aircon cleaning', createdAt: '2026-01-28', priority: 'Normal', status: 'Overdue' },
-  ]);
+  const [priority, setPriority] = useState('Normal');
+  const [requests, setRequests] = useState([]);
 
-  const handleSubmitIssue = (event) => {
+  useEffect(() => {
+    if (!db || !user?.uid) {
+      setRequests([]);
+      return undefined;
+    }
+
+    const requestsQuery = query(collection(db, 'maintenanceRequests'), where('tenantUid', '==', user.uid));
+
+    const unsubscribe = onSnapshot(
+      requestsQuery,
+      (snapshot) => {
+        const rows = snapshot.docs
+          .map((item) => {
+            const data = item.data() || {};
+            const created = data.createdAt?.toDate ? data.createdAt.toDate().toISOString().slice(0, 10) : '-';
+
+            return {
+              id: item.id,
+              issue: data.issue || '-',
+              createdAt: created,
+              priority: data.priority || 'Normal',
+              status: data.status || 'Pending',
+            };
+          })
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+        setRequests(rows);
+      },
+      () => {
+        setRequests([]);
+      }
+    );
+
+    return unsubscribe;
+  }, [user?.uid]);
+
+  const handleSubmitIssue = async (event) => {
     event.preventDefault();
 
     const trimmedIssue = issueText.trim();
@@ -20,21 +57,31 @@ function TenantMaintenance() {
       return;
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    if (!db || !user?.uid) {
+      setSubmitStatus('Unable to submit maintenance request right now.');
+      return;
+    }
 
-    setRequests((prev) => [
-      {
+    try {
+      await addDoc(collection(db, 'maintenanceRequests'), {
+        tenantUid: user.uid,
+        tenantEmail: user.email || '',
         issue: trimmedIssue,
-        createdAt: today,
-        priority: 'Normal',
+        priority,
         status: 'Pending',
-      },
-      ...prev,
-    ]);
+        createdAt: serverTimestamp(),
+      });
+    } catch {
+      setSubmitStatus('Unable to submit maintenance request right now.');
+      return;
+    }
 
     setIssueText('');
+    setPriority('Normal');
     setSubmitStatus('Maintenance request submitted. Admin will review it soon.');
   };
+
+  const requestRows = useMemo(() => requests, [requests]);
 
   const columns = [
     { key: 'issue', label: 'Issue' },
@@ -64,13 +111,25 @@ function TenantMaintenance() {
           placeholder="Example: The sink in Room 201 is leaking and water is dripping continuously."
         />
 
+        <label htmlFor="maintenance-priority">Priority</label>
+        <select
+          id="maintenance-priority"
+          value={priority}
+          onChange={(event) => setPriority(event.target.value)}
+        >
+          <option value="Low">Low</option>
+          <option value="Normal">Normal</option>
+          <option value="High">High</option>
+          <option value="Urgent">Urgent</option>
+        </select>
+
         <button type="submit" className="tenant-pay-btn">Submit Maintenance Request</button>
 
         {submitStatus && <p className="tenant-payment-status">{submitStatus}</p>}
       </form>
 
       <div className="tenant-table-wrap">
-        <DataTable columns={columns} data={requests} />
+        <DataTable columns={columns} data={requestRows} />
       </div>
     </section>
   );

@@ -1,13 +1,19 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 function Sidebar({ isOpen, onToggle, onLogout }) {
   const location = useLocation();
+  const [tenantMenuOpen, setTenantMenuOpen] = useState(location.pathname.startsWith('/admin/tenants'));
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/admin/tenants')) {
+      setTenantMenuOpen(true);
+    }
+  }, [location.pathname]);
 
   const menuItems = [
     { path: '/admin', label: 'Dashboard', icon: '📊' },
     { path: '/admin/rooms', label: 'Rooms', icon: '🏠' },
-    { path: '/admin/tenants', label: 'Tenants', icon: '👥' },
     { path: '/admin/payments', label: 'Payments', icon: '💳' },
     { path: '/admin/maintenance', label: 'Maintenance', icon: '🔧' },
     { path: '/admin/reports', label: 'Reports', icon: '📑' },
@@ -28,6 +34,45 @@ function Sidebar({ isOpen, onToggle, onLogout }) {
       </div>
 
       <nav className="sidebar-nav">
+        <div className={`nav-group ${location.pathname.startsWith('/admin/tenants') ? 'active-group' : ''}`}>
+          <button
+            type="button"
+            className={`nav-item nav-group-toggle ${location.pathname.startsWith('/admin/tenants') ? 'active' : ''}`}
+            onClick={() => {
+              if (!isOpen) return;
+              setTenantMenuOpen((prev) => !prev);
+            }}
+            title={!isOpen ? 'Tenants' : ''}
+          >
+            <span className="nav-icon">👥</span>
+            {isOpen && <span className="nav-label">Tenants</span>}
+            {isOpen && <span className="nav-caret">{tenantMenuOpen ? '▾' : '▸'}</span>}
+          </button>
+
+          {isOpen && tenantMenuOpen && (
+            <div className="nav-submenu">
+              <Link
+                to="/admin/tenants/create"
+                className={`nav-sub-item ${location.pathname === '/admin/tenants/create' ? 'active' : ''}`}
+              >
+                Create Tenant Account
+              </Link>
+              <Link
+                to="/admin/tenants/overview"
+                className={`nav-sub-item ${location.pathname === '/admin/tenants/overview' ? 'active' : ''}`}
+              >
+                Tenant Payment Overview
+              </Link>
+            </div>
+          )}
+
+          {!isOpen && (
+            <Link to="/admin/tenants/create" className="nav-item" title="Tenants">
+              <span className="nav-icon">👥</span>
+            </Link>
+          )}
+        </div>
+
         {menuItems.map((item) => (
           <Link
             key={item.path}

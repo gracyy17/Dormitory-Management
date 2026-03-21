@@ -12,7 +12,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
       allow create: if isAdmin();
       allow update: if isAdmin() || (
         isSignedIn()
@@ -34,6 +34,27 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.tenantUid == request.auth.uid;
       allow read: if isAdmin() || (isSignedIn() && resource.data.tenantUid == request.auth.uid);
       allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /dues/{dueId} {
+      allow create, update, delete: if isAdmin();
+      allow read: if isAdmin() || (isSignedIn() && resource.data.tenantUid == request.auth.uid);
+    }
+
+    match /maintenanceRequests/{requestId} {
+      allow create: if isSignedIn() && request.resource.data.tenantUid == request.auth.uid;
+      allow read: if isAdmin() || (isSignedIn() && resource.data.tenantUid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /rooms/{roomId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read, create, update: if isAdmin();
       allow delete: if false;
     }
 

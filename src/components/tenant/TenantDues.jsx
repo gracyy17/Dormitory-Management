@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, getDoc, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import DataTable from '../common/DataTable';
@@ -6,6 +6,21 @@ import StatusBadge from '../common/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { db, storage } from '../../lib/firebase';
 import { verifyPaymentReference } from '../../lib/paymentVerification';
+
+const formatPeso = (value) => `P${Number(value || 0).toLocaleString('en-PH')}`;
+
+const parseDate = (value) => {
+  if (!value) return null;
+  if (typeof value?.toDate === 'function') return value.toDate();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatDate = (value) => {
+  const parsed = parseDate(value);
+  if (!parsed) return '-';
+  return parsed.toISOString().slice(0, 10);
+};
 
 function TenantDues() {
   const { user } = useAuth();
@@ -17,16 +32,12 @@ function TenantDues() {
   const [isSubmittingReceipt, setIsSubmittingReceipt] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [dues, setDues] = useState([]);
+  const [isDuesLoading, setIsDuesLoading] = useState(true);
   const [tenantProfileImageUrl, setTenantProfileImageUrl] = useState('');
+  const [tenantRoomNo, setTenantRoomNo] = useState('');
   const paymongoCheckoutUrl = import.meta.env.VITE_PAYMONGO_CHECKOUT_URL;
   const gcashQrImageUrl = import.meta.env.VITE_GCASH_QR_IMAGE_URL;
-
-  const dues = [
-    { month: 'January 2026', amount: '₱5,000', dueDate: '2026-01-05', status: 'Paid' },
-    { month: 'February 2026', amount: '₱5,000', dueDate: '2026-02-05', status: 'Paid' },
-    { month: 'March 2026', amount: '₱5,000', dueDate: '2026-03-05', status: 'Pending' },
-    { month: 'April 2026', amount: '₱5,000', dueDate: '2026-04-05', status: 'Pending' },
-  ];
 
   const paymentMethods = [
     { value: 'GCash', details: 'Pay via PayMongo e-wallet checkout' },
@@ -34,7 +45,52 @@ function TenantDues() {
     { value: 'Card / Bank', details: 'Pay via PayMongo secure page' },
   ];
 
-  const currentDue = dues.find((due) => due.status === 'Pending');
+  const dueRows = useMemo(() => {
+    const now = Date.now();
+
+    return dues
+      .map((due) => {
+        const dueDate = parseDate(due.dueDate);
+        const normalizedStatus = String(due.status || 'Pending').toLowerCase();
+        const status = normalizedStatus === 'paid'
+          ? 'Paid'
+          : dueDate && dueDate.getTime() < now
+            ? 'Overdue'
+            : 'Pending';
+
+        return {
+          id: due.id,
+          billingMonth: due.billingMonth || '-',
+          amountValue: Number(due.amount || 0),
+          amount: formatPeso(due.amount || 0),
+          dueDateRaw: dueDate,
+          dueDate: formatDate(due.dueDate),
+          status,
+        };
+      })
+      .sort((a, b) => {
+        const left = a.dueDateRaw ? a.dueDateRaw.getTime() : Number.MAX_SAFE_INTEGER;
+        const right = b.dueDateRaw ? b.dueDateRaw.getTime() : Number.MAX_SAFE_INTEGER;
+        return left - right;
+      });
+  }, [dues]);
+
+  const currentDue = useMemo(
+    () => dueRows.find((due) => due.status === 'Pending' || due.status === 'Overdue'),
+    [dueRows]
+  );
+
+  const summary = useMemo(() => {
+    const outstanding = dueRows
+      .filter((due) => due.status !== 'Paid')
+      .reduce((sum, due) => sum + due.amountValue, 0);
+
+    return {
+      currentBalance: formatPeso(outstanding),
+      nextDueDate: currentDue?.dueDate || 'No pending dues',
+      paymentStatus: currentDue?.status || 'Paid',
+    };
+  }, [dueRows, currentDue]);
 
   useEffect(() => {
     if (!db || !user?.uid) {
@@ -78,9 +134,38 @@ function TenantDues() {
   }, [user?.uid]);
 
   useEffect(() => {
+    if (!db || !user?.uid) {
+      setDues([]);
+      setIsDuesLoading(false);
+      return undefined;
+    }
+
+    const duesQuery = query(collection(db, 'dues'), where('tenantUid', '==', user.uid));
+
+    const unsubscribe = onSnapshot(
+      duesQuery,
+      (snapshot) => {
+        const records = snapshot.docs.map((dueDoc) => ({
+          id: dueDoc.id,
+          ...dueDoc.data(),
+        }));
+        setDues(records);
+        setIsDuesLoading(false);
+      },
+      () => {
+        setDues([]);
+        setIsDuesLoading(false);
+      }
+    );
+
+    return unsubscribe;
+  }, [user?.uid]);
+
+  useEffect(() => {
     const loadTenantProfilePhoto = async () => {
       if (!db || !user?.uid) {
         setTenantProfileImageUrl('');
+        setTenantRoomNo('');
         return;
       }
 
@@ -88,9 +173,11 @@ function TenantDues() {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
           setTenantProfileImageUrl(userDoc.data()?.profileImageDataUrl || userDoc.data()?.profileImageUrl || '');
+          setTenantRoomNo(userDoc.data()?.roomNo || '');
         }
       } catch {
         setTenantProfileImageUrl('');
+        setTenantRoomNo('');
       }
     };
 
@@ -173,9 +260,9 @@ function TenantDues() {
       const verification = await verifyPaymentReference({
         method: 'GCash',
         referenceNumber: referenceNumber.trim(),
-        amount: currentDue.amount,
+        amount: currentDue.amountValue,
         dueDate: currentDue.dueDate,
-        billingMonth: currentDue.month,
+        billingMonth: currentDue.billingMonth,
         tenantUid: user.uid,
         tenantEmail: user.email,
       });
@@ -183,10 +270,11 @@ function TenantDues() {
       await addDoc(collection(db, 'payments'), {
         tenantUid: user.uid,
         tenantEmail: user.email,
+        tenantRoomNo,
         tenantProfileImageUrl,
-        billingMonth: currentDue.month,
+        billingMonth: currentDue.billingMonth,
         dueDate: currentDue.dueDate,
-        amount: currentDue.amount,
+        amount: currentDue.amountValue,
         method: 'GCash',
         referenceNumber: referenceNumber.trim(),
         receiptUrl,
@@ -214,7 +302,7 @@ function TenantDues() {
   };
 
   const columns = [
-    { key: 'month', label: 'Billing Month' },
+    { key: 'billingMonth', label: 'Billing Month' },
     { key: 'amount', label: 'Amount' },
     { key: 'dueDate', label: 'Due Date' },
     {
@@ -247,15 +335,15 @@ function TenantDues() {
       <div className="tenant-summary-grid">
         <article className="tenant-summary-card">
           <h3>Current Balance</h3>
-          <p>₱5,000</p>
+          <p>{summary.currentBalance}</p>
         </article>
         <article className="tenant-summary-card">
           <h3>Next Due Date</h3>
-          <p>March 05, 2026</p>
+          <p>{summary.nextDueDate}</p>
         </article>
         <article className="tenant-summary-card">
           <h3>Payment Status</h3>
-          <p>Pending</p>
+          <p>{summary.paymentStatus}</p>
         </article>
       </div>
 
@@ -337,7 +425,7 @@ function TenantDues() {
       </section>
 
       <div className="tenant-table-wrap">
-        <DataTable columns={columns} data={dues} />
+        {isDuesLoading ? <p>Loading dues...</p> : <DataTable columns={columns} data={dueRows} />}
       </div>
 
       <section className="tenant-table-wrap">
