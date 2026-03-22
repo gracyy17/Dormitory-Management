@@ -10,6 +10,7 @@ import {
   LogoutIcon,
   ReportIcon,
   UserIcon,
+  UsersIcon,
   WrenchIcon,
 } from '../common/LineIcons';
 
@@ -19,11 +20,18 @@ function Sidebar({ isOpen, onToggle, onLogout }) {
   const menuItems = [
     { path: '/admin', label: 'Dashboard', icon: <DashboardIcon className="ui-icon" /> },
     { path: '/admin/rooms', label: 'Rooms', icon: <HomeIcon className="ui-icon" /> },
+    { path: '/admin/tenants/overview', label: 'Tenant Management', icon: <UsersIcon className="ui-icon" /> },
     { path: '/admin/payments', label: 'Payments', icon: <CardIcon className="ui-icon" /> },
     { path: '/admin/maintenance', label: 'Maintenance', icon: <WrenchIcon className="ui-icon" /> },
     { path: '/admin/reports', label: 'Reports', icon: <ReportIcon className="ui-icon" /> },
     { path: '/admin/users', label: 'Users', icon: <UserIcon className="ui-icon" /> },
   ];
+
+  const isActivePath = (itemPath) => {
+    if (itemPath === '/admin') return location.pathname === '/admin';
+    if (itemPath.startsWith('/admin/tenants')) return location.pathname.startsWith('/admin/tenants');
+    return location.pathname === itemPath;
+  };
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : 'collapsed'}`}>
@@ -42,7 +50,7 @@ function Sidebar({ isOpen, onToggle, onLogout }) {
           <Link
             key={item.path}
             to={item.path}
-            className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
+            className={`nav-item ${isActivePath(item.path) ? 'active' : ''}`}
             title={!isOpen ? item.label : ''}
           >
             <span className="nav-icon">{item.icon}</span>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import '../../styles/AdminLogin.css';
 import { useAuth } from '../../context/AuthContext';
+import { BrandIcon, LockIcon, MailIcon } from '../common/LineIcons';
 
 function AdminLogin() {
   const navigate = useNavigate();
@@ -41,7 +42,9 @@ function AdminLogin() {
 
       <div className="login-card">
         <div className="login-header">
-          <div className="login-logo">🏢</div>
+          <div className="login-logo" aria-hidden="true">
+            <BrandIcon className="ui-icon" size={34} />
+          </div>
           <h1 className="login-title">MZ Dormitory</h1>
           <p className="login-subtitle">Dormitory Management System</p>
         </div>
@@ -50,7 +53,9 @@ function AdminLogin() {
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <div className="input-wrapper">
-              <span className="input-icon">👤</span>
+              <span className="input-icon" aria-hidden="true">
+                <MailIcon className="ui-icon" size={16} />
+              </span>
               <input
                 id="email"
                 type="email"
@@ -65,7 +70,9 @@ function AdminLogin() {
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <div className="input-wrapper">
-              <span className="input-icon">🔒</span>
+              <span className="input-icon" aria-hidden="true">
+                <LockIcon className="ui-icon" size={16} />
+              </span>
               <input
                 id="password"
                 type="password"
@@ -89,7 +96,7 @@ function AdminLogin() {
         </form>
 
         <div className="login-footer">
-          <p className="demo-credentials">Client/Admin access requires a Firebase user with role: <strong>admin</strong>.</p>
+          <p className="demo-credentials">Tenant/Admin access requires a Firebase user with role: <strong>admin</strong>.</p>
           {!isFirebaseConfigured && <p className="demo-credentials">Firebase env values are missing. Check your .env file.</p>}
         </div>
       </div>

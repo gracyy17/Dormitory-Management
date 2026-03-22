@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/TenantPortal.css';
-import { CardIcon, PowerIcon, UserIcon, WrenchIcon } from '../common/LineIcons';
+import { CardIcon, PowerIcon, ShieldIcon, UserIcon, WrenchIcon } from '../common/LineIcons';
 import { db } from '../../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -10,11 +10,13 @@ function TenantLayout({ children }) {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [tenantName, setTenantName] = useState('Tenant');
+  const [tenantPhotoUrl, setTenantPhotoUrl] = useState('');
 
   useEffect(() => {
     const loadTenantName = async () => {
       if (!user?.uid || !db) {
         setTenantName('Tenant');
+        setTenantPhotoUrl('');
         return;
       }
 
@@ -22,6 +24,8 @@ function TenantLayout({ children }) {
         const tenantDoc = await getDoc(doc(db, 'users', user.uid));
         const profile = tenantDoc.exists() ? tenantDoc.data() || {} : {};
         const resolvedName = profile.fullName || profile.name || user.displayName || '';
+        const resolvedPhoto = profile.profileImageDataUrl || profile.profileImageUrl || '';
+        setTenantPhotoUrl(String(resolvedPhoto || ''));
 
         if (resolvedName.trim()) {
           setTenantName(resolvedName.trim());
@@ -33,13 +37,14 @@ function TenantLayout({ children }) {
       } catch {
         const emailFallback = String(user?.email || '').split('@')[0] || 'Tenant';
         setTenantName(emailFallback);
+        setTenantPhotoUrl('');
       }
     };
 
     loadTenantName();
   }, [user?.uid, user?.email, user?.displayName]);
 
-  const sidebarEmail = useMemo(() => user?.email || '-', [user?.email]);
+  const tenantRoleLabel = useMemo(() => 'Tenant', []);
 
   const items = [
     { to: '/tenant/dues', label: 'Dues', icon: <CardIcon className="ui-icon" size={17} /> },
@@ -59,12 +64,21 @@ function TenantLayout({ children }) {
         </div>
 
         <div className="tenant-sidebar-header">
-          <div className="tenant-user-avatar" aria-hidden="true">
-            <UserIcon className="ui-icon" size={18} />
+          <div className="tenant-user-avatar">
+            {tenantPhotoUrl ? (
+              <img src={tenantPhotoUrl} alt={`${tenantName} profile`} />
+            ) : (
+              <span className="tenant-user-avatar-fallback" aria-hidden="true">
+                {(tenantName || '?').slice(0, 1).toUpperCase()}
+              </span>
+            )}
           </div>
           <div>
             <p className="tenant-user-name">{tenantName}</p>
-            <p className="tenant-email">{sidebarEmail}</p>
+            <p className="tenant-role-badge">
+              <ShieldIcon className="ui-icon" size={13} />
+              <span>{tenantRoleLabel}</span>
+            </p>
           </div>
         </div>
 

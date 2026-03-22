@@ -226,11 +226,29 @@ function Dashboard() {
       .map((tenant) => ({
         id: tenant.id,
         name: tenant.fullName || tenant.email || '-',
+        profileImageUrl: tenant.profileImageDataUrl || tenant.profileImageUrl || '',
         room: tenant.roomNo || '-',
         checkIn: formatDate(tenant.createdAt),
         status: 'Active',
       }));
   }, [tenants]);
+
+  const renderTenantIdentity = (row) => (
+    <div className="payment-tenant-cell">
+      {row.profileImageUrl ? (
+        <img
+          src={row.profileImageUrl}
+          alt={row.name || 'Tenant'}
+          className="payment-tenant-avatar"
+        />
+      ) : (
+        <div className="payment-tenant-avatar payment-tenant-avatar-fallback">
+          {String(row.name || '?').slice(0, 1).toUpperCase()}
+        </div>
+      )}
+      <span>{row.name}</span>
+    </div>
+  );
 
   const upcomingDueDates = useMemo(() => {
     const toSortableDate = (value) => {
@@ -458,7 +476,7 @@ function Dashboard() {
                 <tbody>
                   {recentTenantActivityRows.map((row) => (
                     <tr key={row.id}>
-                      <td>{row.name}</td>
+                      <td>{renderTenantIdentity(row)}</td>
                       <td>{row.id}</td>
                       <td>{row.room}</td>
                       <td>{row.checkIn}</td>
@@ -487,7 +505,7 @@ function Dashboard() {
                 <tbody>
                   {latestTenantRows.map((row) => (
                     <tr key={row.id}>
-                      <td>{row.name}</td>
+                      <td>{renderTenantIdentity(row)}</td>
                       <td>{row.id}</td>
                       <td>{row.room}</td>
                       <td>{row.checkIn}</td>

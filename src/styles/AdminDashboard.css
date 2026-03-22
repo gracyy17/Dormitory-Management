@@ -519,7 +519,9 @@ body {
 }
 
 .profile-dropdown a {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 10px 16px;
   color: var(--gray-700);
   text-decoration: none;
@@ -540,6 +542,9 @@ body {
   padding: 10px 16px;
   color: var(--gray-700);
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .profile-logout-btn:hover {
@@ -551,6 +556,38 @@ body {
   margin: 6px 0;
   border: none;
   border-top: 1px solid var(--gray-200);
+}
+
+.profile-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.profile-avatar-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #e8f3ff;
+  color: #1d4ed8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-meta-name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gray-800);
+}
+
+.profile-meta-role {
+  margin: 1px 0 0;
+  font-size: 11px;
+  color: var(--gray-500);
 }
 
 /* ==================== PAGE HEADER ==================== */
@@ -1098,6 +1135,23 @@ body {
   color: #c6d4e8;
 }
 
+.admin-layout.dark-mode .profile-dropdown-header {
+  border-bottom-color: #27384f;
+}
+
+.admin-layout.dark-mode .profile-avatar-badge {
+  background: #23344b;
+  color: #d8e8ff;
+}
+
+.admin-layout.dark-mode .profile-meta-name {
+  color: #ecf3ff;
+}
+
+.admin-layout.dark-mode .profile-meta-role {
+  color: #9bb2d0;
+}
+
 .admin-layout.dark-mode .profile-dropdown a:hover,
 .admin-layout.dark-mode .profile-logout-btn:hover,
 .admin-layout.dark-mode .notification-item:hover {
@@ -1626,19 +1680,25 @@ body {
 }
 
 .action-btn {
-  padding: 6px 10px;
+  width: 34px;
+  height: 34px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
   transition: var(--transition);
-  background: none;
-  color: var(--gray-600);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: #eef3fb;
+  color: #334155;
 }
 
 .action-btn:hover {
   color: white;
+  transform: translateY(-1px);
 }
 
 .action-btn.view {
@@ -2058,6 +2118,47 @@ body {
   gap: 12px;
 }
 
+.rooms-electric-widget {
+  display: grid;
+  gap: 12px;
+}
+
+.rooms-electric-form {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.rooms-electric-actions {
+  display: inline-flex;
+}
+
+.rooms-electric-actions .btn-primary {
+  height: 40px;
+}
+
+.rooms-electric-preview {
+  border: 1px solid #d5e2f3;
+  background: #f7fbff;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.rooms-electric-preview p {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.rooms-electric-preview small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+}
+
 .rooms-building-tabs {
   display: flex;
   gap: 8px;
@@ -2251,6 +2352,82 @@ body {
   height: 40px;
 }
 
+.tenants-overview-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.tenants-overview-stats {
+  margin-bottom: 0;
+}
+
+.tenants-overview-widget {
+  padding: 0;
+  overflow: hidden;
+}
+
+.tenants-overview-widget .widget-header {
+  padding: 16px 18px 10px;
+}
+
+.tenants-overview-toolbar {
+  padding: 0 18px 16px;
+  grid-template-columns: 1.5fr 180px 180px auto;
+}
+
+.tenants-overview-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tenants-overview-toolbar-actions .btn-primary,
+.tenants-overview-toolbar-actions .btn-secondary {
+  height: 40px;
+  min-width: 92px;
+}
+
+.tenants-identity-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tenants-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e7effc;
+  color: #3c5a86;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.tenants-avatar-image {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid #cfddf0;
+}
+
+.tenants-identity-text {
+  display: grid;
+  gap: 2px;
+}
+
+.tenants-identity-text strong {
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.tenants-overview-widget .table-container {
+  border-top: 1px solid #e2e8f0;
+}
+
 .users-table-card {
   padding: 14px;
 }
@@ -2354,6 +2531,23 @@ body {
   border-color: #3a5070;
 }
 
+.admin-layout.dark-mode .tenants-avatar {
+  background: #22344c;
+  color: #d2e3fa;
+}
+
+.admin-layout.dark-mode .tenants-avatar-image {
+  border-color: #2b3f5a;
+}
+
+.admin-layout.dark-mode .tenants-identity-text strong {
+  color: #ecf3ff;
+}
+
+.admin-layout.dark-mode .tenants-overview-widget .table-container {
+  border-top-color: #22354e;
+}
+
 .admin-layout.dark-mode .rooms-building-tab {
   background: #132133;
   border-color: #2a3b53;
@@ -2402,6 +2596,32 @@ body {
   color: #a5b8d4;
 }
 
+.admin-layout.dark-mode .rooms-electric-form .form-group input,
+.admin-layout.dark-mode .rooms-electric-form .form-group select {
+  border-color: #2a3a52;
+  background: #122033;
+  color: #d9e5f7;
+}
+
+.admin-layout.dark-mode .rooms-electric-form .form-group input:focus,
+.admin-layout.dark-mode .rooms-electric-form .form-group select:focus {
+  border-color: #506f98;
+  box-shadow: 0 0 0 3px rgba(80, 111, 152, 0.25);
+}
+
+.admin-layout.dark-mode .rooms-electric-preview {
+  border-color: #2a3b53;
+  background: #122033;
+}
+
+.admin-layout.dark-mode .rooms-electric-preview p {
+  color: #d8e4f6;
+}
+
+.admin-layout.dark-mode .rooms-electric-preview small {
+  color: #9fb1cc;
+}
+
 /* ==================== RESPONSIVE DESIGN ==================== */
 @media (max-width: 1024px) {
   .sidebar {
@@ -2430,6 +2650,24 @@ body {
 
   .users-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .rooms-electric-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rooms-electric-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .tenants-overview-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tenants-overview-toolbar-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
   }
 }
 

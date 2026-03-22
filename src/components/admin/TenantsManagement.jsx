@@ -1,11 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { addDoc, collection, doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
 import DataTable from '../common/DataTable';
 import Modal from '../common/Modal';
 import StatusBadge from '../common/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/firebase';
+import {
+  CalendarIcon,
+  CardIcon,
+  CheckCircleIcon,
+  PulseIcon,
+  ReportIcon,
+  UsersIcon,
+  XCircleIcon,
+} from '../common/LineIcons';
 
 const parseDateValue = (value) => {
   if (!value) return null;
@@ -20,6 +39,16 @@ const formatDate = (value) => {
   const date = parseDateValue(value);
   if (!date) return '';
   return date.toISOString().slice(0, 10);
+};
+
+const formatDateDisplay = (value) => {
+  const date = parseDateValue(value);
+  if (!date) return 'Not Set';
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 };
 
 const formatDateTime = (value) => {
@@ -46,6 +75,31 @@ const computeTenantPaymentStatus = (payment) => {
   return 'Not Paid';
 };
 
+const parseBillingMonthLabel = (value) => {
+  const normalized = String(value || '').trim();
+  const match = normalized.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (!match) return null;
+
+  const date = new Date(`${match[1]} 1, ${match[2]}`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+};
+
+const getNextBillingMonthLabel = (value) => {
+  const parsed = parseBillingMonthLabel(value);
+  if (!parsed) return '';
+
+  const next = new Date(parsed.getFullYear(), parsed.getMonth() + 1, 1);
+  return next.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
+
+const splitRoomElectricBill = (roomElectricTotal, occupantCount) => {
+  const total = Number(roomElectricTotal || 0);
+  const count = Math.max(1, Number(occupantCount || 1));
+  if (Number.isNaN(total) || total <= 0) return 0;
+  return Number((total / count).toFixed(2));
+};
+
 function TenantsManagement({ section = 'all' }) {
   const { user, createTenantAccount, isFirebaseConfigured } = useAuth();
 
@@ -56,7 +110,9 @@ function TenantsManagement({ section = 'all' }) {
     selectedBed: '',
     billingMonth: '',
     dueDate: '',
-    amount: '',
+    monthlyRate: '',
+    electricBill: '',
+    advanceDeposit: '',
     phone: '',
     email: '',
     password: '',
@@ -71,13 +127,17 @@ function TenantsManagement({ section = 'all' }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [roomFilter, setRoomFilter] = useState('');
+  const [pendingSearchTerm, setPendingSearchTerm] = useState('');
+  const [pendingStatusFilter, setPendingStatusFilter] = useState('');
+  const [pendingRoomFilter, setPendingRoomFilter] = useState('');
   const [updatingDueId, setUpdatingDueId] = useState('');
   const [showBillingModal, setShowBillingModal] = useState(false);
   const [selectedTenantRow, setSelectedTenantRow] = useState(null);
   const [billingForm, setBillingForm] = useState({
     billingMonth: '',
     dueDate: '',
-    amount: '',
+    monthlyRate: '',
+    electricBill: '',
   });
   const [tenants, setTenants] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -258,13 +318,17 @@ function TenantsManagement({ section = 'all' }) {
           tenantUid: tenant.id,
           dueId: latestDue?.id || '',
           tenantName: tenant.fullName || tenant.email || tenant.id,
+          tenantProfileImageUrl: tenant.profileImageDataUrl || tenant.profileImageUrl || '',
           email: tenant.email || '-',
           roomNo: tenant.roomNo || '-',
-          dueDate: formatDate(latestDue?.dueDate || latestPayment?.dueDate) || 'Not Set',
+          dueDate: formatDateDisplay(latestDue?.dueDate || latestPayment?.dueDate),
+          dueDateRaw: formatDate(latestDue?.dueDate || latestPayment?.dueDate),
           billingMonth: latestDue?.billingMonth || latestPayment?.billingMonth || '',
+          monthlyRateValue: Number(latestDue?.monthlyRate || latestDue?.amount || 0),
+          electricBillValue: Number(latestDue?.electricBill || 0),
           amount: latestDue ? formatAmount(latestDue.amount) : latestPayment ? formatAmount(latestPayment.amount) : 'Not Set',
           paymentStatus: displayStatus,
-          updatedBy: latestDue?.updatedByEmail || latestDue?.updatedBy || '-',
+          updatedBy: latestDue?.updatedBy || latestDue?.updatedByEmail ? 'Admin' : '-',
           updatedAt: formatDateTime(latestDue?.updatedAt),
         };
       })
@@ -293,6 +357,115 @@ function TenantsManagement({ section = 'all' }) {
     [tenantRows]
   );
 
+  const tenantOverviewStats = useMemo(() => {
+    const paidCount = tenantRows.filter((row) => String(row.paymentStatus || '').toLowerCase() === 'paid').length;
+    const pendingCount = tenantRows.filter((row) => String(row.paymentStatus || '').toLowerCase() !== 'paid').length;
+
+    const now = new Date();
+    const currentMonthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const monthlyRevenue = tenantRows
+      .filter((row) => String(row.billingMonth || '').toLowerCase() === currentMonthLabel.toLowerCase())
+      .reduce((sum, row) => {
+        const amount = Number(String(row.amount || '0').replace(/[^0-9.]/g, ''));
+        return sum + (Number.isNaN(amount) ? 0 : amount);
+      }, 0);
+
+    return {
+      total: tenantRows.length,
+      paidCount,
+      pendingCount,
+      paidPercentage: tenantRows.length > 0 ? Math.round((paidCount / tenantRows.length) * 100) : 0,
+      currentMonthLabel,
+      monthlyRevenue,
+    };
+  }, [tenantRows]);
+
+  const applyOverviewFilters = () => {
+    setSearchTerm(pendingSearchTerm);
+    setStatusFilter(pendingStatusFilter);
+    setRoomFilter(pendingRoomFilter);
+  };
+
+  const resetOverviewFilters = () => {
+    setPendingSearchTerm('');
+    setPendingStatusFilter('');
+    setPendingRoomFilter('');
+    setSearchTerm('');
+    setStatusFilter('');
+    setRoomFilter('');
+  };
+
+  const handlePostPaidFlow = async (row) => {
+    const currentDue = dues.find((item) => item.id === row.dueId);
+    if (!currentDue) return;
+
+    const monthlyRate = Number(currentDue.monthlyRate || currentDue.amount || 0);
+    const electricBill = Number(currentDue.electricBill || 0);
+    const totalAmount = Number(currentDue.amount || monthlyRate + electricBill);
+
+    const paymentHistoryQuery = query(
+      collection(db, 'payments'),
+      where('tenantUid', '==', row.tenantUid),
+      where('billingMonth', '==', currentDue.billingMonth || '')
+    );
+    const paymentHistorySnapshot = await getDocs(paymentHistoryQuery);
+    const hasBillingHistory = paymentHistorySnapshot.docs.some((item) => {
+      const data = item.data() || {};
+      return String(data.method || '').toLowerCase() === 'billing';
+    });
+
+    if (!hasBillingHistory) {
+      await addDoc(collection(db, 'payments'), {
+        tenantUid: row.tenantUid,
+        tenantEmail: row.email,
+        tenantRoomNo: row.roomNo,
+        billingMonth: currentDue.billingMonth || '',
+        dueDate: currentDue.dueDate || '',
+        monthlyRate,
+        electricBill,
+        amount: totalAmount,
+        method: 'Billing',
+        referenceNumber: 'AUTO-PAID',
+        status: 'Approved',
+        verificationReason: 'Marked paid from admin billing flow',
+        submittedAt: serverTimestamp(),
+        reviewedAt: serverTimestamp(),
+        reviewedBy: user?.uid || null,
+      });
+    }
+
+    const nextBillingMonth = getNextBillingMonthLabel(currentDue.billingMonth || '');
+    if (!nextBillingMonth) return;
+
+    const hasNextDue = dues.some(
+      (item) => item.tenantUid === row.tenantUid
+        && String(item.billingMonth || '').toLowerCase() === nextBillingMonth.toLowerCase()
+    );
+    if (hasNextDue) return;
+
+    const baseDueDate = parseDateValue(currentDue.dueDate);
+    const nextDueDate = baseDueDate
+      ? new Date(baseDueDate.getFullYear(), baseDueDate.getMonth() + 1, baseDueDate.getDate())
+      : new Date();
+
+    await addDoc(collection(db, 'dues'), {
+      tenantUid: row.tenantUid,
+      tenantEmail: row.email,
+      roomNo: row.roomNo,
+      billingMonth: nextBillingMonth,
+      dueDate: nextDueDate.toISOString().slice(0, 10),
+      monthlyRate,
+      electricBill: 0,
+      amount: monthlyRate,
+      status: 'Pending',
+      createdAt: serverTimestamp(),
+      createdBy: user?.uid || null,
+      updatedAt: serverTimestamp(),
+      updatedBy: user?.uid || null,
+      updatedByEmail: user?.email || null,
+    });
+  };
+
   const handleUpdateDueStatus = async (row, nextStatus) => {
     if (!db) {
       setError('Firestore is not configured.');
@@ -315,6 +488,11 @@ function TenantsManagement({ section = 'all' }) {
         updatedBy: user?.uid || null,
         updatedByEmail: user?.email || null,
       });
+
+      if (nextStatus === 'Paid') {
+        await handlePostPaidFlow(row);
+      }
+
       setSuccess(`Updated ${row.tenantName} status to ${nextStatus}.`);
     } catch {
       setError('Unable to update due status right now.');
@@ -324,11 +502,15 @@ function TenantsManagement({ section = 'all' }) {
   };
 
   const handleOpenBillingModal = (row) => {
+    const roomOccupants = tenants.filter((tenant) => String(tenant.roomNo || '') === String(row.roomNo || '')).length || 1;
+    const roomElectricTotal = Number(row.electricBillValue || 0) * roomOccupants;
+
     setSelectedTenantRow(row);
     setBillingForm({
       billingMonth: row.billingMonth && row.billingMonth !== '-' ? row.billingMonth : '',
-      dueDate: row.dueDate && row.dueDate !== '-' ? row.dueDate : '',
-      amount: row.amount && row.amount !== '-' ? String(row.amount).replace(/[^0-9.]/g, '') : '',
+      dueDate: row.dueDateRaw && row.dueDateRaw !== '-' ? row.dueDateRaw : '',
+      monthlyRate: row.monthlyRateValue ? String(row.monthlyRateValue) : '',
+      electricBill: roomElectricTotal ? String(roomElectricTotal) : '',
     });
     setShowBillingModal(true);
   };
@@ -353,9 +535,26 @@ function TenantsManagement({ section = 'all' }) {
       return;
     }
 
-    const amount = Number(billingForm.amount);
-    if (Number.isNaN(amount) || amount <= 0 || amount > 1000000) {
-      setError('Amount must be greater than 0 and less than or equal to 1,000,000.');
+    const monthlyRate = Number(billingForm.monthlyRate);
+    const roomElectricTotal = Number(billingForm.electricBill || 0);
+
+    if (Number.isNaN(monthlyRate) || monthlyRate <= 0 || monthlyRate > 1000000) {
+      setError('Monthly rate must be greater than 0 and less than or equal to 1,000,000.');
+      return;
+    }
+
+    if (Number.isNaN(roomElectricTotal) || roomElectricTotal < 0 || roomElectricTotal > 1000000) {
+      setError('Electric bill must be between 0 and 1,000,000.');
+      return;
+    }
+
+    const roomTenants = tenants.filter((tenant) => String(tenant.roomNo || '') === String(selectedTenantRow.roomNo || ''));
+    const occupantCount = roomTenants.length || 1;
+    const electricBillPerTenant = splitRoomElectricBill(roomElectricTotal, occupantCount);
+    const amount = monthlyRate + electricBillPerTenant;
+
+    if (amount > 1000000) {
+      setError('Total amount is too large. Please review monthly rate and electric bill.');
       return;
     }
 
@@ -364,33 +563,43 @@ function TenantsManagement({ section = 'all' }) {
     setIsSubmitting(true);
 
     try {
-      if (selectedTenantRow.dueId) {
-        await updateDoc(doc(db, 'dues', selectedTenantRow.dueId), {
+      const targetRoomNo = String(selectedTenantRow.roomNo || '');
+      const targetRoomTenants = tenants.filter((tenant) => String(tenant.roomNo || '') === targetRoomNo);
+
+      for (const tenant of targetRoomTenants) {
+        const existingDue = dues.find(
+          (due) => due.tenantUid === tenant.id
+            && String(due.billingMonth || '').toLowerCase() === billingMonth.toLowerCase()
+        );
+
+        const payload = {
+          tenantUid: tenant.id,
+          tenantEmail: tenant.email || '',
+          roomNo: tenant.roomNo || targetRoomNo,
           billingMonth,
           dueDate: billingForm.dueDate,
+          monthlyRate,
+          electricBill: electricBillPerTenant,
           amount,
+          status: existingDue?.status || 'Pending',
           updatedAt: serverTimestamp(),
           updatedBy: user?.uid || null,
           updatedByEmail: user?.email || null,
-        });
-      } else {
-        await addDoc(collection(db, 'dues'), {
-          tenantUid: selectedTenantRow.tenantUid,
-          tenantEmail: selectedTenantRow.email,
-          roomNo: selectedTenantRow.roomNo,
-          billingMonth,
-          dueDate: billingForm.dueDate,
-          amount,
-          status: 'Pending',
-          createdAt: serverTimestamp(),
-          createdBy: user?.uid || null,
-          updatedAt: serverTimestamp(),
-          updatedBy: user?.uid || null,
-          updatedByEmail: user?.email || null,
-        });
+        };
+
+        if (existingDue?.id) {
+          await updateDoc(doc(db, 'dues', existingDue.id), payload);
+        } else {
+          await addDoc(collection(db, 'dues'), {
+            ...payload,
+            status: 'Pending',
+            createdAt: serverTimestamp(),
+            createdBy: user?.uid || null,
+          });
+        }
       }
 
-      setSuccess(`Billing details saved for ${selectedTenantRow.tenantName}.`);
+      setSuccess(`Billing saved. Room ${targetRoomNo} electric bill was split to ${occupantCount} tenant(s).`);
       setShowBillingModal(false);
       setSelectedTenantRow(null);
     } catch {
@@ -401,7 +610,26 @@ function TenantsManagement({ section = 'all' }) {
   };
 
   const tenantColumns = [
-    { key: 'tenantName', label: 'Tenant' },
+    {
+      key: 'tenantName',
+      label: 'Tenant',
+      render: (value, row) => (
+        <div className="tenants-identity-cell">
+          {row.tenantProfileImageUrl ? (
+            <img
+              src={row.tenantProfileImageUrl}
+              alt={value || 'Tenant'}
+              className="tenants-avatar-image"
+            />
+          ) : (
+            <span className="tenants-avatar">{String(value || '?').slice(0, 1).toUpperCase()}</span>
+          )}
+          <div className="tenants-identity-text">
+            <strong>{value}</strong>
+          </div>
+        </div>
+      ),
+    },
     { key: 'email', label: 'Email' },
     { key: 'roomNo', label: 'Assigned Room' },
     {
@@ -413,13 +641,27 @@ function TenantsManagement({ section = 'all' }) {
           className="action-btn edit"
           onClick={() => handleOpenBillingModal(row)}
           title="Edit billing"
+          aria-label="Edit billing month"
           style={{ minWidth: 120 }}
         >
-          {value || 'Edit'}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <CalendarIcon className="ui-icon" size={14} />
+            <span>{value || 'Edit'}</span>
+          </span>
         </button>
       ),
     },
     { key: 'dueDate', label: 'Due Date' },
+    {
+      key: 'monthlyRateValue',
+      label: 'Monthly Rate',
+      render: (value) => formatAmount(value),
+    },
+    {
+      key: 'electricBillValue',
+      label: 'Electric Bill',
+      render: (value) => formatAmount(value),
+    },
     { key: 'amount', label: 'Amount' },
     {
       key: 'paymentStatus',
@@ -434,25 +676,25 @@ function TenantsManagement({ section = 'all' }) {
 
   const tenantActions = [
     {
-      icon: '✏️',
+      icon: <CardIcon className="ui-icon" size={15} />,
       label: 'Edit Billing',
       variant: 'edit',
       onClick: (row) => handleOpenBillingModal(row),
     },
     {
-      icon: '✅',
+      icon: <CheckCircleIcon className="ui-icon" size={15} />,
       label: 'Mark Paid',
       variant: 'edit',
       onClick: (row) => handleUpdateDueStatus(row, 'Paid'),
     },
     {
-      icon: '⏳',
+      icon: <PulseIcon className="ui-icon" size={15} />,
       label: 'Mark Pending',
       variant: 'view',
       onClick: (row) => handleUpdateDueStatus(row, 'Pending'),
     },
     {
-      icon: '⚠️',
+      icon: <XCircleIcon className="ui-icon" size={15} />,
       label: 'Mark Overdue',
       variant: 'delete',
       onClick: (row) => handleUpdateDueStatus(row, 'Overdue'),
@@ -484,8 +726,8 @@ function TenantsManagement({ section = 'all' }) {
       return;
     }
 
-    if (!form.billingMonth.trim() || !form.dueDate || !form.amount) {
-      setError('Please fill in billing month, due date, and amount.');
+    if (!form.billingMonth.trim() || !form.dueDate || !form.monthlyRate) {
+      setError('Please fill in billing month, due date, and monthly rate.');
       return;
     }
 
@@ -500,13 +742,30 @@ function TenantsManagement({ section = 'all' }) {
       return;
     }
 
-    if (Number(form.amount) <= 0 || Number.isNaN(Number(form.amount))) {
-      setError('Amount must be a valid value greater than 0.');
+    const monthlyRate = Number(form.monthlyRate);
+    const roomElectricTotal = Number(form.electricBill || 0);
+    const advanceDeposit = Number(form.advanceDeposit || 0);
+    const occupantCount = (selectedRoom?.occupiedBeds || 0) + 1;
+    const electricBill = splitRoomElectricBill(roomElectricTotal, occupantCount);
+    const totalAmount = monthlyRate + electricBill;
+
+    if (monthlyRate <= 0 || Number.isNaN(monthlyRate)) {
+      setError('Monthly rate must be a valid value greater than 0.');
       return;
     }
 
-    if (Number(form.amount) > 1000000) {
-      setError('Amount is too large. Please review the value.');
+    if (Number.isNaN(roomElectricTotal) || roomElectricTotal < 0) {
+      setError('Electric bill must be 0 or greater.');
+      return;
+    }
+
+    if (Number.isNaN(advanceDeposit) || advanceDeposit < 0) {
+      setError('Early deposit must be 0 or greater.');
+      return;
+    }
+
+    if (totalAmount > 1000000) {
+      setError('Total amount is too large. Please review monthly rate and electric bill.');
       return;
     }
 
@@ -551,7 +810,10 @@ function TenantsManagement({ section = 'all' }) {
         roomBed: Number(form.selectedBed),
         billingMonth: form.billingMonth.trim(),
         dueDate: form.dueDate,
-        amount: Number(form.amount),
+        amount: totalAmount,
+        monthlyRate,
+        electricBill,
+        advanceDeposit: Number(form.advanceDeposit || 0),
         phone: form.phone.trim(),
         profileImageDataUrl,
         notifyEmail: form.notifyEmail,
@@ -565,7 +827,9 @@ function TenantsManagement({ section = 'all' }) {
         selectedBed: '',
         billingMonth: '',
         dueDate: '',
-        amount: '',
+        monthlyRate: '',
+        electricBill: '',
+        advanceDeposit: '',
         phone: '',
         email: '',
         password: '',
@@ -667,16 +931,54 @@ function TenantsManagement({ section = 'all' }) {
             </div>
 
             <div className="form-group">
-              <label>Amount</label>
+              <label>Monthly Rate</label>
               <input
                 type="number"
                 min="1"
                 step="0.01"
-                name="amount"
-                value={form.amount}
+                name="monthlyRate"
+                value={form.monthlyRate}
                 onChange={handleChange}
                 placeholder="e.g., 5000"
                 required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Room Electric Bill (Auto-split)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                name="electricBill"
+                value={form.electricBill}
+                onChange={handleChange}
+                placeholder="e.g., 1500"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Total Amount</label>
+              <input
+                type="text"
+                value={formatAmount(
+                  Number(form.monthlyRate || 0)
+                  + splitRoomElectricBill(Number(form.electricBill || 0), (selectedRoom?.occupiedBeds || 0) + 1)
+                )}
+                readOnly
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Early Deposit (Optional)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                name="advanceDeposit"
+                value={form.advanceDeposit}
+                onChange={handleChange}
+                placeholder="e.g., 2000"
               />
             </div>
 
@@ -790,25 +1092,49 @@ function TenantsManagement({ section = 'all' }) {
         )}
 
         {section !== 'create' && (
-        <section className="dashboard-widget">
+        <div className="tenants-overview-shell">
+        <section className="users-stat-grid tenants-overview-stats">
+          <article className="dashboard-surface users-stat-card">
+            <span className="users-stat-icon"><UsersIcon className="ui-icon" size={18} /></span>
+            <p className="users-stat-label">Total Tenants:</p>
+            <h3>{tenantOverviewStats.total}</h3>
+          </article>
+          <article className="dashboard-surface users-stat-card">
+            <span className="users-stat-icon"><CheckCircleIcon className="ui-icon" size={18} /></span>
+            <p className="users-stat-label">Payments Paid:</p>
+            <h3>{tenantOverviewStats.paidCount} ({tenantOverviewStats.paidPercentage}%)</h3>
+          </article>
+          <article className="dashboard-surface users-stat-card">
+            <span className="users-stat-icon"><PulseIcon className="ui-icon" size={18} /></span>
+            <p className="users-stat-label">Payments Pending:</p>
+            <h3>{tenantOverviewStats.pendingCount}</h3>
+          </article>
+          <article className="dashboard-surface users-stat-card">
+            <span className="users-stat-icon"><ReportIcon className="ui-icon" size={18} /></span>
+            <p className="users-stat-label">Monthly Revenue ({tenantOverviewStats.currentMonthLabel.split(' ')[0]}):</p>
+            <h3>{formatAmount(tenantOverviewStats.monthlyRevenue)}</h3>
+          </article>
+        </section>
+
+        <section className="dashboard-widget tenants-overview-widget">
           <div className="widget-header">
             <h2>Tenant Payment Overview ({tenantRows.length})</h2>
           </div>
 
-          <div className="filters-grid" style={{ marginBottom: 12 }}>
-            <div className="filter-group">
+          <div className="users-toolbar tenants-overview-toolbar">
+            <div className="users-toolbar-group">
               <label>Search</label>
               <input
                 type="text"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                value={pendingSearchTerm}
+                onChange={(event) => setPendingSearchTerm(event.target.value)}
                 placeholder="Search tenant, email, or room"
               />
             </div>
 
-            <div className="filter-group">
+            <div className="users-toolbar-group users-toolbar-select">
               <label>Status</label>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <select value={pendingStatusFilter} onChange={(event) => setPendingStatusFilter(event.target.value)}>
                 <option value="">All Status</option>
                 <option value="Paid">Paid</option>
                 <option value="Not Paid">Not Paid</option>
@@ -816,14 +1142,19 @@ function TenantsManagement({ section = 'all' }) {
               </select>
             </div>
 
-            <div className="filter-group">
+            <div className="users-toolbar-group users-toolbar-select">
               <label>Room</label>
-              <select value={roomFilter} onChange={(event) => setRoomFilter(event.target.value)}>
+              <select value={pendingRoomFilter} onChange={(event) => setPendingRoomFilter(event.target.value)}>
                 <option value="">All Rooms</option>
                 {uniqueAssignedRooms.map((roomNo) => (
                   <option key={roomNo} value={roomNo}>{roomNo}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="tenants-overview-toolbar-actions">
+              <button type="button" className="btn-primary" onClick={applyOverviewFilters}>Apply</button>
+              <button type="button" className="btn-secondary" onClick={resetOverviewFilters}>Reset</button>
             </div>
           </div>
 
@@ -835,6 +1166,7 @@ function TenantsManagement({ section = 'all' }) {
             <DataTable columns={tenantColumns} data={filteredTenantRows} actions={tenantActions} />
           )}
         </section>
+        </div>
         )}
 
         <Modal
@@ -869,15 +1201,42 @@ function TenantsManagement({ section = 'all' }) {
             </div>
 
             <div className="form-group">
-              <label>Amount</label>
+              <label>Monthly Rate</label>
               <input
                 type="number"
                 min="1"
                 step="0.01"
-                value={billingForm.amount}
-                onChange={(event) => setBillingForm((prev) => ({ ...prev, amount: event.target.value }))}
+                value={billingForm.monthlyRate}
+                onChange={(event) => setBillingForm((prev) => ({ ...prev, monthlyRate: event.target.value }))}
                 placeholder="e.g., 5000"
                 required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Room Electric Bill (Auto-split)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={billingForm.electricBill}
+                onChange={(event) => setBillingForm((prev) => ({ ...prev, electricBill: event.target.value }))}
+                placeholder="e.g., 1500"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Total Amount</label>
+              <input
+                type="text"
+                value={formatAmount(
+                  Number(billingForm.monthlyRate || 0)
+                  + splitRoomElectricBill(
+                    Number(billingForm.electricBill || 0),
+                    tenants.filter((tenant) => String(tenant.roomNo || '') === String(selectedTenantRow?.roomNo || '')).length || 1
+                  )
+                )}
+                readOnly
               />
             </div>
 

@@ -13,19 +13,46 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
-      allow create: if isAdmin();
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'tenant'
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.keys().hasOnly([
+          'email',
+          'role',
+          'fullName',
+          'phone',
+          'emergencyContact',
+          'homeAddress',
+          'profileImageDataUrl',
+          'profileImageUrl',
+          'mustChangePassword',
+          'notifyEmail',
+          'roomNo',
+          'roomBed',
+          'createdAt',
+          'createdBy',
+          'leaseStart',
+          'leaseEnd'
+        ])
+      );
       allow update: if isAdmin() || (
         isSignedIn()
         && request.auth.uid == userId
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.email == resource.data.email
-        && request.resource.data.createdBy == resource.data.createdBy
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.mustChangePassword == false
-        && request.resource.data.fullName == resource.data.fullName
-        && request.resource.data.roomNo == resource.data.roomNo
-        && request.resource.data.phone == resource.data.phone
-        && request.resource.data.notifyEmail == resource.data.notifyEmail
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'profileImageDataUrl',
+          'profileImageUrl',
+          'fullName',
+          'phone',
+          'emergencyContact',
+          'homeAddress',
+          'mustChangePassword'
+        ])
+        && (
+          !request.resource.data.diff(resource.data).changedKeys().hasAny(['mustChangePassword'])
+          || request.resource.data.mustChangePassword == false
+        )
       );
       allow delete: if false;
     }

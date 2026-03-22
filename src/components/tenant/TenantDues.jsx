@@ -61,6 +61,8 @@ function TenantDues() {
         return {
           id: due.id,
           billingMonth: due.billingMonth || '-',
+          monthlyRate: formatPeso(due.monthlyRate || due.amount || 0),
+          electricBill: formatPeso(due.electricBill || 0),
           amountValue: Number(due.amount || 0),
           amount: formatPeso(due.amount || 0),
           dueDateRaw: dueDate,
@@ -303,6 +305,8 @@ function TenantDues() {
 
   const columns = [
     { key: 'billingMonth', label: 'Billing Month' },
+    { key: 'monthlyRate', label: 'Monthly Rate' },
+    { key: 'electricBill', label: 'Electric Bill' },
     { key: 'amount', label: 'Amount' },
     { key: 'dueDate', label: 'Due Date' },
     {
@@ -462,6 +466,8 @@ function TenantDues() {
               {dueRows.map((row) => (
                 <tr key={row.id}>
                   <td>{row.billingMonth}</td>
+                  <td>{row.monthlyRate}</td>
+                  <td>{row.electricBill}</td>
                   <td>{row.amount}</td>
                   <td>{row.dueDate}</td>
                   <td><StatusBadge status={row.status} type={row.status.toLowerCase()} /></td>

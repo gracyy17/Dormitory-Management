@@ -13,12 +13,12 @@ import Modal from '../common/Modal';
 import DataTable from '../common/DataTable';
 import StatusBadge from '../common/StatusBadge';
 import { db } from '../../lib/firebase';
+import { useAuth } from '../../context/AuthContext';
 
 const defaultRoomForm = {
   roomNo: '',
   building: '',
   floor: '',
-  type: 'Standard',
   capacity: '2',
   occupiedBeds: '0',
   monthlyRate: '',
@@ -43,7 +43,7 @@ const normalizeStatus = (status, occupiedBeds, capacity) => {
   if (status === 'Maintenance') return 'Maintenance';
   if (occupiedBeds <= 0) return 'Available';
   if (occupiedBeds >= capacity) return 'Occupied';
-  return 'Occupied';
+  return 'Available';
 };
 
 const formatPeso = (amount) => {
@@ -52,11 +52,18 @@ const formatPeso = (amount) => {
   return `P${value.toLocaleString('en-PH')}`;
 };
 
+const splitRoomElectricBill = (total, occupants) => {
+  const amount = Number(total || 0);
+  const count = Math.max(1, Number(occupants || 1));
+  if (Number.isNaN(amount) || amount <= 0) return 0;
+  return Number((amount / count).toFixed(2));
+};
+
 function RoomsManagement() {
+  const { user } = useAuth();
   const [filters, setFilters] = useState({
     building: '',
     floor: '',
-    roomType: '',
     status: ''
   });
   
@@ -71,6 +78,14 @@ function RoomsManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [tenantUsers, setTenantUsers] = useState([]);
+  const [dues, setDues] = useState([]);
+  const [roomElectricForm, setRoomElectricForm] = useState({
+    roomNo: '',
+    billingMonth: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    electricBillTotal: '',
+  });
+  const [isApplyingElectricSplit, setIsApplyingElectricSplit] = useState(false);
   const [tenantCountByRoom, setTenantCountByRoom] = useState({});
   const [selectedBuilding, setSelectedBuilding] = useState('Building A');
 
@@ -97,7 +112,6 @@ function RoomsManagement() {
             roomNo: String(data.roomNo || ''),
             building: String(data.building || ''),
             floor: String(data.floor || ''),
-            type: String(data.type || 'Standard'),
             capacity,
             occupiedBeds,
             occupancy: `${occupiedBeds}/${capacity}`,
@@ -136,10 +150,33 @@ function RoomsManagement() {
           counter[roomNo] = (counter[roomNo] || 0) + 1;
         });
 
+        const tenants = snapshot.docs
+          .map((userDoc) => ({ id: userDoc.id, ...userDoc.data() }))
+          .filter((item) => item.role === 'tenant');
+
+        setTenantUsers(tenants);
         setTenantCountByRoom(counter);
       },
       () => {
+        setTenantUsers([]);
         setTenantCountByRoom({});
+      }
+    );
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!db) return undefined;
+
+    const unsubscribe = onSnapshot(
+      collection(db, 'dues'),
+      (snapshot) => {
+        const records = snapshot.docs.map((dueDoc) => ({ id: dueDoc.id, ...dueDoc.data() }));
+        setDues(records);
+      },
+      () => {
+        setDues([]);
       }
     );
 
@@ -167,7 +204,6 @@ function RoomsManagement() {
     return (
       (!filters.building || room.building === filters.building) &&
       (!filters.floor || room.floor === filters.floor) &&
-      (!filters.roomType || room.type === filters.roomType) &&
       (!filters.status || room.status === filters.status)
     );
   }), [filters, roomsWithDerivedOccupancy]);
@@ -181,7 +217,7 @@ function RoomsManagement() {
     const occupiedBeds = Number(payload.occupiedBeds || 0);
     const monthlyRate = Number(payload.monthlyRate);
 
-    if (!payload.roomNo.trim() || !payload.building || !payload.floor || !payload.type) {
+    if (!payload.roomNo.trim() || !payload.building || !payload.floor) {
       return 'Please complete all required room fields.';
     }
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > 8) {
@@ -234,7 +270,6 @@ function RoomsManagement() {
         roomNo: newRoom.roomNo.trim(),
         building: newRoom.building,
         floor: newRoom.floor,
-        type: newRoom.type,
         capacity,
         occupiedBeds,
         monthlyRate: Number(newRoom.monthlyRate),
@@ -264,7 +299,6 @@ function RoomsManagement() {
       roomNo: room.roomNo,
       building: room.building,
       floor: room.floor,
-      type: room.type,
       capacity: String(room.capacity),
       occupiedBeds: String(room.occupiedBeds || 0),
       monthlyRate: String(room.monthlyRate || 0),
@@ -306,7 +340,6 @@ function RoomsManagement() {
         roomNo: editRoom.roomNo.trim(),
         building: editRoom.building,
         floor: editRoom.floor,
-        type: editRoom.type,
         capacity,
         occupiedBeds,
         monthlyRate: Number(editRoom.monthlyRate),
@@ -348,7 +381,6 @@ function RoomsManagement() {
     { key: 'roomNo', label: 'Room No' },
     { key: 'building', label: 'Building' },
     { key: 'floor', label: 'Floor' },
-    { key: 'type', label: 'Type' },
     { key: 'capacity', label: 'Capacity' },
     { key: 'occupancy', label: 'Occupancy' },
     { key: 'monthlyRateDisplay', label: 'Monthly Rate' },
@@ -373,11 +405,6 @@ function RoomsManagement() {
     () => Array.from(new Set(roomsWithDerivedOccupancy.map((room) => room.floor).filter(Boolean))).sort((a, b) => (floorOrder[a] || 99) - (floorOrder[b] || 99)),
     [roomsWithDerivedOccupancy]
   );
-  const uniqueTypes = useMemo(
-    () => Array.from(new Set(roomsWithDerivedOccupancy.map((room) => room.type).filter(Boolean))).sort(),
-    [roomsWithDerivedOccupancy]
-  );
-
   useEffect(() => {
     if (uniqueBuildings.length === 0) {
       setSelectedBuilding('Building A');
@@ -406,6 +433,131 @@ function RoomsManagement() {
       availableBeds,
     };
   }, [selectedBuildingRooms]);
+
+  const occupiedRoomOptions = useMemo(() => {
+    return roomsWithDerivedOccupancy
+      .filter((room) => Number(room.occupiedBeds || 0) > 0)
+      .map((room) => ({
+        roomNo: room.roomNo,
+        occupiedBeds: Number(room.occupiedBeds || 0),
+        monthlyRate: Number(room.monthlyRate || 0),
+      }));
+  }, [roomsWithDerivedOccupancy]);
+
+  const roomSplitPreview = useMemo(() => {
+    const roomNo = String(roomElectricForm.roomNo || '').trim();
+    const total = Number(roomElectricForm.electricBillTotal || 0);
+
+    if (!roomNo) return null;
+
+    const occupants = tenantUsers.filter((tenant) => String(tenant.roomNo || '').trim() === roomNo);
+    const occupantCount = occupants.length;
+
+    if (occupantCount <= 0) {
+      return {
+        roomNo,
+        occupantCount: 0,
+        total,
+        perTenant: 0,
+        occupantNames: [],
+      };
+    }
+
+    return {
+      roomNo,
+      occupantCount,
+      total,
+      perTenant: splitRoomElectricBill(total, occupantCount),
+      occupantNames: occupants.map((tenant) => tenant.fullName || tenant.email || tenant.id),
+    };
+  }, [roomElectricForm.roomNo, roomElectricForm.electricBillTotal, tenantUsers]);
+
+  const handleApplyRoomElectricSplit = async (event) => {
+    event.preventDefault();
+
+    if (!db) {
+      setError('Firestore is not configured.');
+      return;
+    }
+
+    const roomNo = String(roomElectricForm.roomNo || '').trim();
+    const billingMonth = String(roomElectricForm.billingMonth || '').trim();
+    const electricBillTotal = Number(roomElectricForm.electricBillTotal || 0);
+
+    if (!roomNo) {
+      setError('Please select a room.');
+      return;
+    }
+
+    if (!billingMonth || !/^[A-Za-z]+\s+\d{4}$/.test(billingMonth)) {
+      setError('Billing month must follow format like March 2026.');
+      return;
+    }
+
+    if (Number.isNaN(electricBillTotal) || electricBillTotal < 0 || electricBillTotal > 1000000) {
+      setError('Electric bill must be between 0 and 1,000,000.');
+      return;
+    }
+
+    const occupants = tenantUsers.filter((tenant) => String(tenant.roomNo || '').trim() === roomNo);
+    if (occupants.length === 0) {
+      setError(`No tenants are currently assigned to Room ${roomNo}.`);
+      return;
+    }
+
+    const roomRecord = roomsWithDerivedOccupancy.find((room) => String(room.roomNo || '').trim() === roomNo);
+    const electricBillPerTenant = splitRoomElectricBill(electricBillTotal, occupants.length);
+
+    setError('');
+    setSuccess('');
+    setIsApplyingElectricSplit(true);
+
+    try {
+      for (const tenant of occupants) {
+        const existingDue = dues.find(
+          (due) => due.tenantUid === tenant.id
+            && String(due.billingMonth || '').toLowerCase() === billingMonth.toLowerCase()
+        );
+
+        const monthlyRate = Number(existingDue?.monthlyRate || roomRecord?.monthlyRate || 0);
+        const totalAmount = monthlyRate + electricBillPerTenant;
+
+        const payload = {
+          tenantUid: tenant.id,
+          tenantEmail: tenant.email || '',
+          roomNo,
+          billingMonth,
+          dueDate: existingDue?.dueDate || new Date().toISOString().slice(0, 10),
+          monthlyRate,
+          electricBill: electricBillPerTenant,
+          amount: totalAmount,
+          status: existingDue?.status || 'Pending',
+          updatedAt: serverTimestamp(),
+          updatedBy: user?.uid || null,
+          updatedByEmail: user?.email || null,
+        };
+
+        if (existingDue?.id) {
+          await updateDoc(doc(db, 'dues', existingDue.id), payload);
+        } else {
+          await addDoc(collection(db, 'dues'), {
+            ...payload,
+            createdAt: serverTimestamp(),
+            createdBy: user?.uid || null,
+          });
+        }
+      }
+
+      setSuccess(
+        `Electric bill applied for Room ${roomNo}. Total ${formatPeso(electricBillTotal)} split to ${occupants.length} tenant(s): ${formatPeso(electricBillPerTenant)} each.`
+      );
+      setRoomElectricForm((prev) => ({ ...prev, electricBillTotal: '' }));
+    } catch {
+      setError('Unable to apply electric bill split right now.');
+    } finally {
+      setIsApplyingElectricSplit(false);
+    }
+  };
 
   return (
     <AdminLayout>
@@ -439,16 +591,6 @@ function RoomsManagement() {
             </div>
 
             <div className="filter-group">
-              <label>Room Type</label>
-              <select name="roomType" value={filters.roomType} onChange={handleFilterChange}>
-                <option value="">All Types</option>
-                {uniqueTypes.map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="filter-group">
               <label>Status</label>
               <select name="status" value={filters.status} onChange={handleFilterChange}>
                 <option value="">All Status</option>
@@ -467,6 +609,76 @@ function RoomsManagement() {
         {isLoading && <p>Loading rooms...</p>}
         {error && <p className="admin-feedback is-error">{error}</p>}
         {success && <p className="admin-feedback is-success">{success}</p>}
+
+        <section className="dashboard-widget rooms-electric-widget">
+          <div className="widget-header">
+            <h2>Room Electric Bill Split</h2>
+            <span className="count-badge">Auto split by occupants</span>
+          </div>
+
+          <form className="rooms-electric-form" onSubmit={handleApplyRoomElectricSplit}>
+            <div className="form-group">
+              <label>Room</label>
+              <select
+                value={roomElectricForm.roomNo}
+                onChange={(e) => setRoomElectricForm((prev) => ({ ...prev, roomNo: e.target.value }))}
+                required
+              >
+                <option value="">Select occupied room</option>
+                {occupiedRoomOptions.map((room) => (
+                  <option key={room.roomNo} value={room.roomNo}>
+                    Room {room.roomNo} ({room.occupiedBeds} occupant{room.occupiedBeds > 1 ? 's' : ''})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Billing Month</label>
+              <input
+                type="text"
+                placeholder="e.g., March 2026"
+                value={roomElectricForm.billingMonth}
+                onChange={(e) => setRoomElectricForm((prev) => ({ ...prev, billingMonth: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Room Electric Bill (Total)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="e.g., 1500"
+                value={roomElectricForm.electricBillTotal}
+                onChange={(e) => setRoomElectricForm((prev) => ({ ...prev, electricBillTotal: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div className="rooms-electric-actions">
+              <button type="submit" className="btn-primary" disabled={isApplyingElectricSplit || occupiedRoomOptions.length === 0}>
+                {isApplyingElectricSplit ? 'Applying...' : 'Apply and Split'}
+              </button>
+            </div>
+          </form>
+
+          {roomSplitPreview && (
+            <div className="rooms-electric-preview">
+              {roomSplitPreview.occupantCount > 0 ? (
+                <>
+                  <p>
+                    Room {roomSplitPreview.roomNo}: {formatPeso(roomSplitPreview.total)} / {roomSplitPreview.occupantCount} occupant{roomSplitPreview.occupantCount > 1 ? 's' : ''} = <strong>{formatPeso(roomSplitPreview.perTenant)}</strong> each
+                  </p>
+                  <small>{roomSplitPreview.occupantNames.join(', ')}</small>
+                </>
+              ) : (
+                <p>No occupants found in Room {roomSplitPreview.roomNo}.</p>
+              )}
+            </div>
+          )}
+        </section>
 
         <section className="dashboard-widget rooms-drilldown-widget">
           <div className="widget-header">
@@ -495,7 +707,14 @@ function RoomsManagement() {
 
           <div className="rooms-card-grid">
             {selectedBuildingRooms.map((room) => {
-              const availableBeds = Math.max(Number(room.capacity || 0) - Number(room.occupiedBeds || 0), 0);
+              const capacity = Number(room.capacity || 0);
+              const occupiedBeds = Number(room.occupiedBeds || 0);
+              const availableBeds = Math.max(capacity - occupiedBeds, 0);
+              const isFullyOccupied = occupiedBeds >= capacity && capacity > 0;
+              const cardStatus = room.status === 'Maintenance' ? 'Maintenance' : (isFullyOccupied ? 'Occupied' : 'Available');
+              const availabilityLabel = isFullyOccupied
+                ? 'Occupied'
+                : `Available beds: ${availableBeds}/${capacity}`;
 
               return (
                 <button
@@ -506,12 +725,12 @@ function RoomsManagement() {
                 >
                   <div className="room-card-head">
                     <h3>Room {room.roomNo}</h3>
-                    <StatusBadge status={room.status} type={String(room.status || '').toLowerCase()} />
+                    <StatusBadge status={cardStatus} type={String(cardStatus || '').toLowerCase()} />
                   </div>
-                  <p className="room-card-meta">{room.floor} Floor • {room.type}</p>
+                  <p className="room-card-meta">{room.floor} Floor</p>
                   <div className="room-card-stats">
-                    <span>Occupied: {room.occupiedBeds}</span>
-                    <span>Available: {availableBeds}</span>
+                    <span>{room.occupancy}</span>
+                    <span>{availabilityLabel}</span>
                   </div>
                   <small>Tap to view Bed 1 to Bed {room.capacity}</small>
                 </button>
@@ -555,10 +774,6 @@ function RoomsManagement() {
                 <div className="info-item">
                   <label>Floor</label>
                   <p>{selectedRoom.floor}</p>
-                </div>
-                <div className="info-item">
-                  <label>Type</label>
-                  <p>{selectedRoom.type}</p>
                 </div>
                 <div className="info-item">
                   <label>Capacity</label>
@@ -656,18 +871,6 @@ function RoomsManagement() {
                 <option value="2nd">2nd Floor</option>
                 <option value="3rd">3rd Floor</option>
                 <option value="4th">4th Floor</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Room Type</label>
-              <select
-                value={newRoom.type}
-                onChange={(e) => setNewRoom({ ...newRoom, type: e.target.value })}
-              >
-                <option value="Standard">Standard</option>
-                <option value="Deluxe">Deluxe</option>
-                <option value="Suite">Suite</option>
               </select>
             </div>
 
@@ -773,18 +976,6 @@ function RoomsManagement() {
                 <option value="2nd">2nd</option>
                 <option value="3rd">3rd</option>
                 <option value="4th">4th</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Room Type</label>
-              <select
-                value={editRoom.type}
-                onChange={(e) => setEditRoom({ ...editRoom, type: e.target.value })}
-              >
-                <option value="Standard">Standard</option>
-                <option value="Deluxe">Deluxe</option>
-                <option value="Suite">Suite</option>
               </select>
             </div>
 

@@ -1,15 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/firebase';
 import {
   BellIcon,
   CardIcon,
+  LogoutIcon,
   MenuIcon,
   MoonIcon,
   ReceiptIcon,
   SearchIcon,
+  SettingsIcon,
+  ShieldIcon,
   SunIcon,
   UserIcon,
   WrenchIcon,
@@ -29,6 +32,7 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
   const [payments, setPayments] = useState([]);
   const [dues, setDues] = useState([]);
   const [maintenanceRequests, setMaintenanceRequests] = useState([]);
+  const [profileName, setProfileName] = useState('');
   const { user, logout } = useAuth();
 
   const storageKey = useMemo(
@@ -80,6 +84,26 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
       unsubMaintenance();
     };
   }, []);
+
+  useEffect(() => {
+    if (!db || !user?.uid) {
+      setProfileName('');
+      return undefined;
+    }
+
+    const unsubscribe = onSnapshot(
+      doc(db, 'users', user.uid),
+      (snapshot) => {
+        const data = snapshot.exists() ? snapshot.data() || {} : {};
+        setProfileName(String(data.fullName || '').trim());
+      },
+      () => {
+        setProfileName('');
+      }
+    );
+
+    return unsubscribe;
+  }, [user?.uid]);
 
   const notificationItems = useMemo(() => {
     const now = Date.now();
@@ -139,6 +163,14 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
     () => notificationItems.filter((item) => (item.sortAt || 0) > lastSeenAt).length,
     [notificationItems, lastSeenAt]
   );
+
+  const identityLabel = useMemo(() => {
+    if (profileName) return profileName;
+    const displayName = String(user?.displayName || '').trim();
+    if (displayName) return displayName;
+    const emailPrefix = String(user?.email || '').split('@')[0];
+    return emailPrefix || 'Admin';
+  }, [profileName, user?.displayName, user?.email]);
 
   return (
     <div className="top-navbar">
@@ -220,17 +252,36 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
               setShowNotifications(false);
             }}
           >
-            <UserIcon className="ui-icon" size={16} />
-            <span className="user-name">{user?.email || 'Admin User'}</span>
+            <ShieldIcon className="ui-icon" size={16} />
+            <span className="user-name">{identityLabel}</span>
           </button>
 
           {showProfile && (
             <div className="profile-dropdown">
-              <a href="#profile">Profile</a>
-              <a href="#settings">Settings</a>
-              <a href="#help">Help</a>
+              <div className="profile-dropdown-header">
+                <span className="profile-avatar-badge"><ShieldIcon className="ui-icon" size={14} /></span>
+                <div>
+                  <p className="profile-meta-name">{identityLabel}</p>
+                  <p className="profile-meta-role">Administrator</p>
+                </div>
+              </div>
+              <Link to="/admin/settings#account-settings" onClick={() => setShowProfile(false)}>
+                <UserIcon className="ui-icon" size={14} />
+                <span>Edit Account</span>
+              </Link>
+              <Link to="/admin/settings" onClick={() => setShowProfile(false)}>
+                <SettingsIcon className="ui-icon" size={14} />
+                <span>Settings</span>
+              </Link>
+              <Link to="/admin/users" onClick={() => setShowProfile(false)}>
+                <UserIcon className="ui-icon" size={14} />
+                <span>Users</span>
+              </Link>
               <hr />
-              <button className="profile-logout-btn" onClick={logout}>Logout</button>
+              <button className="profile-logout-btn" onClick={logout}>
+                <LogoutIcon className="ui-icon" size={14} />
+                <span>Logout</span>
+              </button>
             </div>
           )}
         </div>

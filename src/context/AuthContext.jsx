@@ -119,6 +119,9 @@ function AuthProvider({ children }) {
     billingMonth = '',
     dueDate = '',
     amount = 0,
+    monthlyRate = 0,
+    electricBill = 0,
+    advanceDeposit = 0,
     phone = '',
     profileImageUrl = '',
     profileImageDataUrl = '',
@@ -138,8 +141,25 @@ function AuthProvider({ children }) {
     if (!selectedRoomId || !roomNo.trim()) {
       throw new Error('Assign an available room before creating tenant account.');
     }
-    if (!billingMonth.trim() || !dueDate || Number(amount) <= 0 || Number.isNaN(Number(amount))) {
+    const normalizedMonthlyRate = Number(monthlyRate);
+    const normalizedElectricBill = Number(electricBill);
+    const normalizedAdvanceDeposit = Number(advanceDeposit || 0);
+    const computedAmount = Number(amount || normalizedMonthlyRate + normalizedElectricBill);
+
+    if (!billingMonth.trim() || !dueDate || computedAmount <= 0 || Number.isNaN(computedAmount)) {
       throw new Error('Billing details are required and amount must be greater than 0.');
+    }
+
+    if (Number.isNaN(normalizedMonthlyRate) || normalizedMonthlyRate < 0) {
+      throw new Error('Monthly rate must be 0 or greater.');
+    }
+
+    if (Number.isNaN(normalizedElectricBill) || normalizedElectricBill < 0) {
+      throw new Error('Electric bill must be 0 or greater.');
+    }
+
+    if (Number.isNaN(normalizedAdvanceDeposit) || normalizedAdvanceDeposit < 0) {
+      throw new Error('Advance deposit must be 0 or greater.');
     }
 
     const dueDateValue = new Date(dueDate);
@@ -170,6 +190,7 @@ function AuthProvider({ children }) {
         roomNo,
         roomBed,
         phone,
+        advanceDeposit: normalizedAdvanceDeposit,
         profileImageUrl: profileImageDataUrl ? '' : profileImageUrl,
         profileImageDataUrl,
         notifyEmail,
@@ -204,17 +225,37 @@ function AuthProvider({ children }) {
         });
       }
 
-      if (billingMonth && dueDate && Number(amount) > 0) {
+      if (billingMonth && dueDate && computedAmount > 0) {
         await addDoc(collection(db, 'dues'), {
           tenantUid: credential.user.uid,
           tenantEmail: email,
           roomNo,
           billingMonth,
           dueDate,
-          amount: Number(amount),
+          monthlyRate: normalizedMonthlyRate,
+          electricBill: normalizedElectricBill,
+          amount: computedAmount,
           status: 'Pending',
           createdAt: serverTimestamp(),
           createdBy: user?.uid || null,
+        });
+      }
+
+      if (normalizedAdvanceDeposit > 0) {
+        await addDoc(collection(db, 'payments'), {
+          tenantUid: credential.user.uid,
+          tenantEmail: email,
+          tenantRoomNo: roomNo,
+          billingMonth: 'Advance Deposit',
+          dueDate,
+          amount: normalizedAdvanceDeposit,
+          method: 'Deposit',
+          referenceNumber: 'EARLY-DEPOSIT',
+          status: 'Approved',
+          verificationReason: 'Initial advance deposit upon tenant onboarding',
+          submittedAt: serverTimestamp(),
+          reviewedAt: serverTimestamp(),
+          reviewedBy: user?.uid || null,
         });
       }
 

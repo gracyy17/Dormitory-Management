@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { updateProfile } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
-import { db } from '../../lib/firebase';
+import { useAuth } from '../../context/AuthContext';
+import { auth, db } from '../../lib/firebase';
 
 const defaultSettings = {
   dormitoryName: 'Dormitory Management',
@@ -13,11 +15,16 @@ const defaultSettings = {
 };
 
 function SettingsManagement() {
+  const { user } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
+  const [account, setAccount] = useState({ username: '', email: '' });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAccountSaving, setIsAccountSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [accountError, setAccountError] = useState('');
+  const [accountSuccess, setAccountSuccess] = useState('');
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -34,6 +41,17 @@ function SettingsManagement() {
         if (settingsDoc.exists()) {
           setSettings((prev) => ({ ...prev, ...settingsDoc.data() }));
         }
+
+        if (user?.uid) {
+          const profileDoc = await getDoc(doc(db, 'users', user.uid));
+          const profile = profileDoc.exists() ? profileDoc.data() || {} : {};
+          const fallbackUsername = String(user.displayName || '').trim() || String(user.email || '').split('@')[0] || '';
+
+          setAccount({
+            username: String(profile.fullName || '').trim() || fallbackUsername,
+            email: String(user.email || ''),
+          });
+        }
       } catch {
         setError('Unable to load settings right now.');
       } finally {
@@ -42,7 +60,7 @@ function SettingsManagement() {
     };
 
     loadSettings();
-  }, []);
+  }, [user?.uid, user?.email, user?.displayName]);
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target;
@@ -103,6 +121,47 @@ function SettingsManagement() {
     }
   };
 
+  const handleSaveAccount = async (event) => {
+    event.preventDefault();
+
+    if (!db || !user?.uid) {
+      setAccountError('Account settings are not available right now.');
+      return;
+    }
+
+    setAccountError('');
+    setAccountSuccess('');
+
+    const username = String(account.username || '').trim();
+    if (!username) {
+      setAccountError('Username is required.');
+      return;
+    }
+
+    setIsAccountSaving(true);
+
+    try {
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          fullName: username,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      if (auth?.currentUser) {
+        await updateProfile(auth.currentUser, { displayName: username });
+      }
+
+      setAccountSuccess('Account details updated successfully.');
+    } catch {
+      setAccountError('Unable to update account details right now.');
+    } finally {
+      setIsAccountSaving(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="rooms-management-page">
@@ -110,6 +169,43 @@ function SettingsManagement() {
           <h1>Settings</h1>
           <p className="page-subtitle">Configure default system values for admin operations.</p>
         </div>
+
+        <section className="dashboard-widget">
+          <div className="widget-header" id="account-settings">
+            <h2>Edit Account</h2>
+          </div>
+
+          {isLoading ? (
+            <p>Loading account settings...</p>
+          ) : (
+            <form className="add-room-form" onSubmit={handleSaveAccount}>
+              <div className="form-group">
+                <label>Username</label>
+                <input
+                  type="text"
+                  value={account.username}
+                  onChange={(event) => setAccount((prev) => ({ ...prev, username: event.target.value }))}
+                  placeholder="Enter your display username"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Email</label>
+                <input type="email" value={account.email} disabled readOnly />
+              </div>
+
+              {accountError && <p style={{ color: '#b91c1c', marginTop: 4 }}>{accountError}</p>}
+              {accountSuccess && <p style={{ color: '#166534', marginTop: 4 }}>{accountSuccess}</p>}
+
+              <div className="modal-actions" style={{ marginTop: 8 }}>
+                <button type="submit" className="btn-primary" disabled={isAccountSaving}>
+                  {isAccountSaving ? 'Saving...' : 'Save Account'}
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
 
         <section className="dashboard-widget">
           <div className="widget-header">

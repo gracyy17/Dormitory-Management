@@ -311,6 +311,36 @@ export function UploadIcon(props) {
   );
 }
 
+export function EyeIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M2.5 12S6 5.5 12 5.5S21.5 12 21.5 12S18 18.5 12 18.5S2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </IconBase>
+  );
+}
+
+export function EditIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M4 20H8L18.5 9.5A2.1 2.1 0 1 0 15.5 6.5L5 17V20Z" />
+      <path d="M13.5 8.5L16.5 11.5" />
+    </IconBase>
+  );
+}
+
+export function TrashIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M4 7H20" />
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4H13.5A1.5 1.5 0 0 1 15 5.5V7" />
+      <path d="M6.5 7L7.4 19A2 2 0 0 0 9.4 21H14.6A2 2 0 0 0 16.6 19L17.5 7" />
+      <path d="M10 11V17" />
+      <path d="M14 11V17" />
+    </IconBase>
+  );
+}
+
 export function BoltIcon(props) {
   return (
     <IconBase {...props}>

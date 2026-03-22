@@ -1,4 +1,28 @@
 import React from 'react';
+import { EditIcon, EyeIcon, TrashIcon } from './LineIcons';
+
+function resolveActionIcon(action) {
+  if (action?.icon) {
+    return action.icon;
+  }
+
+  const variant = String(action?.variant || '').toLowerCase();
+  const label = String(action?.label || '').toLowerCase();
+
+  if (variant === 'view' || label.includes('view')) {
+    return <EyeIcon className="ui-icon" size={15} />;
+  }
+
+  if (variant === 'edit' || label.includes('edit') || label.includes('approve')) {
+    return <EditIcon className="ui-icon" size={15} />;
+  }
+
+  if (variant === 'delete' || label.includes('delete') || label.includes('reject')) {
+    return <TrashIcon className="ui-icon" size={15} />;
+  }
+
+  return action?.label;
+}
 
 function DataTable({ columns, data, actions, striped = true }) {
   return (
@@ -26,8 +50,9 @@ function DataTable({ columns, data, actions, striped = true }) {
                       className={`action-btn ${action.variant}`}
                       onClick={() => action.onClick(row)}
                       title={action.label}
+                      aria-label={action.label}
                     >
-                      {action.icon || action.label}
+                      {resolveActionIcon(action)}
                     </button>
                   ))}
                 </td>

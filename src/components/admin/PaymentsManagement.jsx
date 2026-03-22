@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  addDoc,
   collection,
   doc,
+  getDocs,
   onSnapshot,
+  query,
   serverTimestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
 import DataTable from '../common/DataTable';
@@ -12,10 +16,33 @@ import StatusBadge from '../common/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { auth, db } from '../../lib/firebase';
 
+const parseDateValue = (value) => {
+  if (!value) return null;
+  if (typeof value?.toDate === 'function') return value.toDate();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const parseBillingMonthLabel = (value) => {
+  const normalized = String(value || '').trim();
+  const match = normalized.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (!match) return null;
+  const parsed = new Date(`${match[1]} 1, ${match[2]}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const getNextBillingMonthLabel = (value) => {
+  const parsed = parseBillingMonthLabel(value);
+  if (!parsed) return '';
+  const next = new Date(parsed.getFullYear(), parsed.getMonth() + 1, 1);
+  return next.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
+
 function PaymentsManagement() {
   const { user } = useAuth();
   const [payments, setPayments] = useState([]);
   const [dues, setDues] = useState([]);
+  const [users, setUsers] = useState([]);
   const [reviewItems, setReviewItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -67,11 +94,31 @@ function PaymentsManagement() {
       }
     );
 
+    const unsubscribeUsers = onSnapshot(
+      collection(db, 'users'),
+      (snapshot) => {
+        setUsers(snapshot.docs.map((userDoc) => ({ id: userDoc.id, ...userDoc.data() })));
+      },
+      () => {
+        setUsers([]);
+      }
+    );
+
     return () => {
       unsubscribePayments();
       unsubscribeDues();
+      unsubscribeUsers();
     };
   }, []);
+
+  const tenantProfileByUid = useMemo(() => {
+    const map = new Map();
+    users.forEach((tenant) => {
+      if (String(tenant.role || '').toLowerCase() !== 'tenant') return;
+      map.set(tenant.id, tenant.profileImageDataUrl || tenant.profileImageUrl || '');
+    });
+    return map;
+  }, [users]);
 
   useEffect(() => {
     const paymentItems = payments.map((item) => ({
@@ -109,6 +156,78 @@ function PaymentsManagement() {
           updatedByEmail: user.email || null,
           updatedAt: serverTimestamp(),
         });
+
+        if (nextStatus === 'Approved') {
+          const monthlyRate = Number(item.monthlyRate || item.amount || 0);
+          const electricBill = Number(item.electricBill || 0);
+          const totalAmount = Number(item.amount || monthlyRate + electricBill);
+
+          const paymentHistoryQuery = query(
+            collection(db, 'payments'),
+            where('tenantUid', '==', item.tenantUid || ''),
+            where('billingMonth', '==', item.billingMonth || '')
+          );
+          const paymentHistorySnapshot = await getDocs(paymentHistoryQuery);
+          const hasBillingHistory = paymentHistorySnapshot.docs.some((paymentDoc) => {
+            const data = paymentDoc.data() || {};
+            return String(data.method || '').toLowerCase() === 'billing';
+          });
+
+          if (!hasBillingHistory) {
+            await addDoc(collection(db, 'payments'), {
+              tenantUid: item.tenantUid,
+              tenantEmail: item.tenantEmail,
+              tenantRoomNo: item.roomNo,
+              tenantProfileImageUrl: tenantProfileByUid.get(item.tenantUid) || item.tenantProfileImageUrl || '',
+              billingMonth: item.billingMonth || '',
+              dueDate: item.dueDate || '',
+              monthlyRate,
+              electricBill,
+              amount: totalAmount,
+              method: 'Billing',
+              referenceNumber: 'AUTO-PAID',
+              status: 'Approved',
+              verificationReason: 'Marked paid from payments review queue',
+              submittedAt: serverTimestamp(),
+              reviewedAt: serverTimestamp(),
+              reviewedBy: user.uid,
+            });
+          }
+
+          const nextBillingMonth = getNextBillingMonthLabel(item.billingMonth || '');
+          if (nextBillingMonth) {
+            const nextDueQuery = query(
+              collection(db, 'dues'),
+              where('tenantUid', '==', item.tenantUid || ''),
+              where('billingMonth', '==', nextBillingMonth)
+            );
+            const nextDueSnapshot = await getDocs(nextDueQuery);
+
+            if (nextDueSnapshot.empty) {
+              const baseDueDate = parseDateValue(item.dueDate);
+              const nextDueDate = baseDueDate
+                ? new Date(baseDueDate.getFullYear(), baseDueDate.getMonth() + 1, baseDueDate.getDate())
+                : new Date();
+
+              await addDoc(collection(db, 'dues'), {
+                tenantUid: item.tenantUid,
+                tenantEmail: item.tenantEmail,
+                roomNo: item.roomNo,
+                billingMonth: nextBillingMonth,
+                dueDate: nextDueDate.toISOString().slice(0, 10),
+                monthlyRate,
+                electricBill: 0,
+                amount: monthlyRate,
+                status: 'Pending',
+                createdAt: serverTimestamp(),
+                createdBy: user.uid,
+                updatedAt: serverTimestamp(),
+                updatedBy: user.uid,
+                updatedByEmail: user.email || null,
+              });
+            }
+          }
+        }
       }
     } catch {
       setError('Unable to update payment status.');
@@ -183,9 +302,9 @@ function PaymentsManagement() {
       label: 'Tenant',
       render: (email, row) => (
         <div className="payment-tenant-cell">
-          {row.tenantProfileImageUrl ? (
+          {(tenantProfileByUid.get(row.tenantUid) || row.tenantProfileImageUrl) ? (
             <img
-              src={row.tenantProfileImageUrl}
+              src={tenantProfileByUid.get(row.tenantUid) || row.tenantProfileImageUrl}
               alt={email || 'Tenant'}
               className="payment-tenant-avatar"
             />

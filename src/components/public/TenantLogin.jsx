@@ -71,7 +71,7 @@ function TenantLogin() {
 
         <div className="tenant-login-links">
           <Link to="/">Back to Public Website</Link>
-          <Link to="/admin/login">Client/Admin Login</Link>
+          <Link to="/admin/login">Tenant/Admin Login</Link>
         </div>
       </div>
     </div>
