@@ -1,0 +1,50 @@
+name: CI - Code Quality & Build
+
+on:
+  push:
+    branches:
+      - main
+      - admin
+      - tenant
+      - feature/**
+  pull_request:
+    branches:
+      - main
+      - admin
+      - tenant
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    name: Lint & Build Check
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: false
+
+      - name: Build project
+        run: npm run build
+        continue-on-error: false
+
+      - name: ✅ All checks passed
+        if: success()
+        run: echo "Code quality and build successful!"
+
+      - name: ❌ Check failed
+        if: failure()
+        run: |
+          echo "Build or lint failed. Please review the errors above."
+          exit 1
