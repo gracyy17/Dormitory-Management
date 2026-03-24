@@ -35,6 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Deploy to Firebase Hosting
     needs: validate
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/dorm-27fe2-firebase-adminsdk-fbsvc-634e7e241c.json
 
     steps:
       - name: Checkout code
@@ -59,10 +61,13 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
 
-      - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
-          channelId: live
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Verify service account file
+        run: |
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          echo "Service account file found."
+
+      - name: Deploy to Firebase Hosting
+        run: firebase deploy --only hosting --project dorm-27fe2 --non-interactive
