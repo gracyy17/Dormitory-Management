@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
@@ -77,7 +77,7 @@ function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const loginWithRole = async ({ email, password, expectedRole }) => {
+  const loginWithRole = useCallback(async ({ email, password, expectedRole }) => {
     if (!isFirebaseConfigured || !auth) {
       throw new Error('Firebase is not configured. Add VITE_FIREBASE_* values in your .env file.');
     }
@@ -109,9 +109,9 @@ function AuthProvider({ children }) {
     setMustChangePassword(Boolean(profile?.mustChangePassword));
 
     return { user: credential.user, role: userRole, mustChangePassword: Boolean(profile?.mustChangePassword) };
-  };
+  }, []);
 
-  const createTenantAccount = async ({
+  const createTenantAccount = useCallback(async ({
     email,
     password,
     fullName = '',
@@ -269,9 +269,9 @@ function AuthProvider({ children }) {
     } finally {
       await deleteApp(secondaryApp);
     }
-  };
+  }, [role, user]);
 
-  const changeMyPassword = async ({ currentPassword, newPassword }) => {
+  const changeMyPassword = useCallback(async ({ currentPassword, newPassword }) => {
     if (!auth?.currentUser || !auth.currentUser.email) {
       throw new Error('No authenticated user found.');
     }
@@ -296,15 +296,15 @@ function AuthProvider({ children }) {
     } catch (error) {
       throw new Error(mapAuthError(error));
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     if (!auth) return;
     await signOut(auth);
     setUser(null);
     setRole(null);
     setMustChangePassword(false);
-  };
+  }, []);
 
   const value = useMemo(
     () => ({
