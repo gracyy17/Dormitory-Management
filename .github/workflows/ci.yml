@@ -1,6 +1,6 @@
 name: CI - Code Quality & Build
 
-'on':
+on:
   push:
     branches:
       - main
