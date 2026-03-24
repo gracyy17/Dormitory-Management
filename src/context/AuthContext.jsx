@@ -13,6 +13,8 @@ import { deleteApp, initializeApp } from 'firebase/app';
 import { addDoc, collection, doc, getDoc, getDocs, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db, firebaseConfig, isFirebaseConfigured } from '../lib/firebase';
 
+/* eslint-disable react-refresh/only-export-components */
+
 const AuthContext = createContext(null);
 
 const getUserProfile = async (uid) => {
@@ -316,7 +318,16 @@ function AuthProvider({ children }) {
       logout,
       isFirebaseConfigured,
     }),
-    [user, role, mustChangePassword, loading]
+    [
+      user,
+      role,
+      mustChangePassword,
+      loading,
+      loginWithRole,
+      createTenantAccount,
+      changeMyPassword,
+      logout,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
