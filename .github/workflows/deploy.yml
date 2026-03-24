@@ -64,9 +64,26 @@ jobs:
       - name: Install Firebase CLI
         run: npm install --global firebase-tools
 
+      - name: Create service account file from secret
+        shell: bash
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_SERVICE_ACCOUNT_DORM_27FE2: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DORM_27FE2 }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT_DORM_27FE2" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_DORM_27FE2" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          else
+            echo "Missing Firebase service account secret. Add FIREBASE_SERVICE_ACCOUNT in GitHub Actions secrets."
+            exit 1
+          fi
+
       - name: Verify service account file
         run: |
-          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          test -s "$GOOGLE_APPLICATION_CREDENTIALS"
           echo "Service account file found."
 
       - name: Deploy to Firebase Hosting
