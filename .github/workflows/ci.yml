@@ -1,6 +1,6 @@
 name: CI - Code Quality & Build
 
-on:
+'on':
   push:
     branches:
       - main
@@ -33,18 +33,6 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
-        continue-on-error: false
 
       - name: Build project
         run: npm run build
-        continue-on-error: false
-
-      - name: ✅ All checks passed
-        if: success()
-        run: echo "Code quality and build successful!"
-
-      - name: ❌ Check failed
-        if: failure()
-        run: |
-          echo "Build or lint failed. Please review the errors above."
-          exit 1
