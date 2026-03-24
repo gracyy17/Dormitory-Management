@@ -1,9 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import PublicRoutes from './pages/PublicRoutes';
-import AdminRoutes from './pages/AdminRoutes';
 import TenantRoutes from './pages/TenantRoutes';
-import AdminLogin from './components/admin/AdminLogin';
 import TenantLogin from './components/public/TenantLogin';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -31,16 +29,7 @@ function App() {
       <Router>
         <div className="App">
           <Routes>
-            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/tenant/login" element={<TenantLogin />} />
-            <Route
-              path="/admin/*"
-              element={(
-                <RequireRole role="admin" redirectTo="/admin/login">
-                  <AdminRoutes />
-                </RequireRole>
-              )}
-            />
             <Route
               path="/tenant/*"
               element={(
