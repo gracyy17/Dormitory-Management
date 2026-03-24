@@ -59,10 +59,46 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
 
+      - name: Resolve Firebase service account
+        id: firebase_sa
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ]; then
+            {
+              echo "value<<EOF"
+              echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -n "${{ secrets.FIREBASE_SERVICE_ACCOUNT_DORM_27FE2 }}" ]; then
+            {
+              echo "value<<EOF"
+              echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_DORM_27FE2 }}'
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -f "dorm-27fe2-firebase-adminsdk-fbsvc-634e7e241c.json" ]; then
+            {
+              echo "value<<EOF"
+              cat dorm-27fe2-firebase-adminsdk-fbsvc-634e7e241c.json
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Firebase service account not found in secrets or repository key file."
+          exit 1
+
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' && secrets.FIREBASE_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DORM_27FE2 }}'
+          firebaseServiceAccount: ${{ steps.firebase_sa.outputs.value }}
           projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
           channelId: live
