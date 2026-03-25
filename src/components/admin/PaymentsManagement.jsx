@@ -23,6 +23,12 @@ const parseDateValue = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const formatDateTime = (value) => {
+  const date = parseDateValue(value);
+  if (!date) return '-';
+  return `${date.toISOString().slice(0, 10)} ${date.toTimeString().slice(0, 5)}`;
+};
+
 const parseBillingMonthLabel = (value) => {
   const normalized = String(value || '').trim();
   const match = normalized.match(/^([A-Za-z]+)\s+(\d{4})$/);
@@ -153,6 +159,28 @@ function PaymentsManagement() {
     const merged = [...paymentItems, ...dueItems].sort((a, b) => b.sortAt - a.sortAt);
     setReviewItems(merged);
   }, [payments, dues]);
+
+  const reviewQueueItems = useMemo(() => {
+    return reviewItems.filter((item) => {
+      const status = String(item.status || '').toLowerCase();
+      if (item.sourceType === 'due') return status === 'pending' || status === 'overdue';
+      return ['pending', 'pending review', 'pending-review', 'needs-review', 'not paid'].includes(status);
+    });
+  }, [reviewItems]);
+
+  const approvedHistoryItems = useMemo(() => {
+    return reviewItems
+      .filter((item) => {
+        if (item.sourceType !== 'payment') return false;
+        const status = String(item.status || '').toLowerCase();
+        return status === 'approved' || status === 'paid';
+      })
+      .sort((a, b) => {
+        const aTime = parseDateValue(a.reviewedAt)?.getTime() || parseDateValue(a.submittedAt)?.getTime() || 0;
+        const bTime = parseDateValue(b.reviewedAt)?.getTime() || parseDateValue(b.submittedAt)?.getTime() || 0;
+        return bTime - aTime;
+      });
+  }, [reviewItems]);
 
   const handleReview = async (item, nextStatus) => {
     if (!db || !user?.uid) return;
@@ -377,6 +405,33 @@ function PaymentsManagement() {
     },
   ];
 
+  const approvedHistoryColumns = [
+    columns[0],
+    { key: 'billingMonth', label: 'Billing Month' },
+    { key: 'amount', label: 'Amount' },
+    { key: 'method', label: 'Method' },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (status) => (
+        <StatusBadge
+          status={status}
+          type={String(status || '').toLowerCase().replace(' ', '-')}
+        />
+      ),
+    },
+    {
+      key: 'submittedAt',
+      label: 'Submitted At',
+      render: (value) => formatDateTime(value),
+    },
+    {
+      key: 'reviewedAt',
+      label: 'Approved At',
+      render: (value) => formatDateTime(value),
+    },
+  ];
+
   const loadingRows = Array.from({ length: 6 });
 
   return (
@@ -389,7 +444,7 @@ function PaymentsManagement() {
 
         <section className="dashboard-widget">
           <div className="widget-header">
-            <h2>Review Queue ({reviewItems.length})</h2>
+            <h2>Review Queue ({reviewQueueItems.length})</h2>
             <button className="btn-primary" onClick={handleSendRemindersNow} disabled={isSendingReminder}>
               {isSendingReminder ? (
                 <span className="loading-inline">
@@ -429,7 +484,14 @@ function PaymentsManagement() {
             </div>
           )}
           {error && <p className="admin-feedback is-error">{error}</p>}
-          {!isLoading && <DataTable columns={columns} data={reviewItems} actions={actions} />}
+          {!isLoading && <DataTable columns={columns} data={reviewQueueItems} actions={actions} />}
+        </section>
+
+        <section className="dashboard-widget">
+          <div className="widget-header">
+            <h2>Approved Payments History ({approvedHistoryItems.length})</h2>
+          </div>
+          {!isLoading && <DataTable columns={approvedHistoryColumns} data={approvedHistoryItems} />}
         </section>
       </div>
     </AdminLayout>

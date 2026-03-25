@@ -38,6 +38,7 @@ function TenantDues() {
   const [tenantRoomNo, setTenantRoomNo] = useState('');
   const paymongoCheckoutUrl = import.meta.env.VITE_PAYMONGO_CHECKOUT_URL;
   const gcashQrImageUrl = import.meta.env.VITE_GCASH_QR_IMAGE_URL;
+  const isStorageUploadEnabled = import.meta.env.VITE_ENABLE_STORAGE_UPLOAD === 'true';
 
   const paymentMethods = [
     { value: 'Maya', details: 'PayMongo e-wallet checkout' },
@@ -232,6 +233,12 @@ function TenantDues() {
       let uploadNote = '';
 
       if (receiptFile) {
+        if (!isStorageUploadEnabled) {
+          setPaymentStatus('Receipt image upload is disabled for this deployment. Please provide a receipt link instead.');
+          setIsSubmittingReceipt(false);
+          return;
+        }
+
         if (storage) {
           try {
             const timestamp = Date.now();
@@ -412,16 +419,24 @@ function TenantDues() {
                   />
 
                   <div className="tenant-receipt-actions">
-                    <label htmlFor="receipt-file" className="tenant-upload-btn" title="Upload receipt image">
-                      <UploadIcon className="ui-icon" size={15} />
-                      <span>{receiptFile ? receiptFile.name : 'Upload Receipt'}</span>
-                    </label>
-                    <input
-                      id="receipt-file"
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => setReceiptFile(event.target.files?.[0] || null)}
-                    />
+                    {isStorageUploadEnabled ? (
+                      <>
+                        <label htmlFor="receipt-file" className="tenant-upload-btn" title="Upload receipt image">
+                          <UploadIcon className="ui-icon" size={15} />
+                          <span>{receiptFile ? receiptFile.name : 'Upload Receipt'}</span>
+                        </label>
+                        <input
+                          id="receipt-file"
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => setReceiptFile(event.target.files?.[0] || null)}
+                        />
+                      </>
+                    ) : (
+                      <p className="tenant-gcash-help" style={{ margin: 0 }}>
+                        File upload is disabled on current plan. Use a receipt link below.
+                      </p>
+                    )}
 
                     <button type="submit" className="tenant-pay-btn" disabled={isSubmittingReceipt}>
                       {isSubmittingReceipt ? 'Submitting...' : 'Submit Dues Receipt'}
@@ -433,7 +448,7 @@ function TenantDues() {
                     type="url"
                     value={receiptLink}
                     onChange={(event) => setReceiptLink(event.target.value)}
-                    placeholder="(Optional) Receipt link"
+                    placeholder={isStorageUploadEnabled ? '(Optional) Receipt link' : 'Required: Receipt link (Google Drive, image URL, etc.)'}
                   />
                 </div>
               </div>
