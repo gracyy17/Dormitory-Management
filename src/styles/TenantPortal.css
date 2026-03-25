@@ -1,7 +1,7 @@
 .tenant-layout {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 232px 1fr;
+  grid-template-columns: 1fr;
   background: radial-gradient(circle at top right, #eef5ff 0%, #edf2f7 35%, #e8edf3 100%);
 }
 
