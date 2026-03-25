@@ -47,6 +47,7 @@ function TenantDues() {
   const cloudinaryCloudName = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
   const cloudinaryUploadPreset = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
   const isCloudinaryUploadEnabled = Boolean(cloudinaryCloudName && cloudinaryUploadPreset);
+  const isReceiptFileUploadEnabled = isCloudinaryUploadEnabled || isStorageUploadEnabled;
 
   const paymentMethods = [
     { value: 'Maya', details: 'PayMongo e-wallet checkout' },
@@ -376,7 +377,7 @@ function TenantDues() {
 
         if (!receiptUrl) {
           if (!isStorageUploadEnabled) {
-            setPaymentStatus('Receipt image upload is disabled for this deployment. Please provide a receipt link instead.');
+            setPaymentStatus('Receipt upload fallback is unavailable. Please provide a receipt link instead.');
             setIsSubmittingReceipt(false);
             return;
           }
@@ -620,7 +621,7 @@ function TenantDues() {
                   />
 
                   <div className="tenant-receipt-actions">
-                    {isStorageUploadEnabled ? (
+                    {isReceiptFileUploadEnabled ? (
                       <>
                         <label htmlFor="receipt-file" className="tenant-upload-btn" title="Upload receipt image">
                           <UploadIcon className="ui-icon" size={15} />
@@ -635,7 +636,7 @@ function TenantDues() {
                       </>
                     ) : (
                       <p className="tenant-gcash-help" style={{ margin: 0 }}>
-                        File upload is disabled on current plan. Use a receipt link below.
+                        File upload is disabled. Use a receipt link below.
                       </p>
                     )}
 
@@ -649,7 +650,7 @@ function TenantDues() {
                     type="url"
                     value={receiptLink}
                     onChange={(event) => setReceiptLink(event.target.value)}
-                    placeholder={isStorageUploadEnabled ? '(Optional) Receipt link' : 'Required: Receipt link (Google Drive, image URL, etc.)'}
+                    placeholder={isReceiptFileUploadEnabled ? '(Optional) Receipt link' : 'Required: Receipt link (Google Drive, image URL, etc.)'}
                   />
                 </div>
               </div>
