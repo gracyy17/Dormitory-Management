@@ -1101,6 +1101,64 @@
   color: #166534;
 }
 
+/* Dark-mode readability fixes for tenant profile cards and forms */
+.tenant-layout:is(.dark-mode, .is-dark) {
+  color: #d9e7f8;
+}
+
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-page-header h1,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-card h3,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-password-form h3 {
+  color: #e8f1ff;
+}
+
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-page-header p,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-card label,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-showcase-grid .tenant-form-group label,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-photo-hint,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-file-name,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-role-badge {
+  color: #adc3dc;
+}
+
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-card p,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-meta p,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-meta label {
+  color: #d7e7fa;
+}
+
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-showcase-grid .tenant-profile-card,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-showcase-grid .tenant-password-form,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-card,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-password-form {
+  border-color: #2a3a4f;
+  background: #131f2d;
+}
+
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-showcase-grid .tenant-form-group input,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-showcase-grid .tenant-form-group textarea,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-form-group input {
+  border-color: #38516d;
+  background: #0e1824;
+  color: #dbe8f8;
+}
+
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-showcase-grid .tenant-form-group input::placeholder,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-profile-showcase-grid .tenant-form-group textarea::placeholder,
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-form-group input::placeholder {
+  color: #89a4c2;
+}
+
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-photo-edit-dot {
+  background: #223445;
+  border-color: #d8e6f4;
+  color: #dbeaff;
+}
+
+.tenant-layout:is(.dark-mode, .is-dark) .tenant-photo-edit-dot:hover {
+  background: #2b3f53;
+}
+
 @media (max-width: 1100px) {
   .tenant-summary-grid,
   .tenant-payment-methods {
