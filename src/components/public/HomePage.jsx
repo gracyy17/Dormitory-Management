@@ -118,6 +118,10 @@ function HomePage() {
               <p>Why Choose Us</p>
               <strong>Balanced rooms, responsive support, and a study-friendly community.</strong>
             </div>
+            <div className="essential-info">
+              <p>Community & Support</p>
+              <strong>Available management and friendly neighbors creating a supportive living environment.</strong>
+            </div>
           </div>
         </section>
 
