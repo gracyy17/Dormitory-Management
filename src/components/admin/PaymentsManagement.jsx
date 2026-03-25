@@ -326,6 +326,61 @@ function PaymentsManagement() {
           reviewedBy: user.uid,
           reviewedAt: serverTimestamp(),
         });
+
+        if (nextStatus === 'Approved') {
+          const currentDueQuery = query(
+            collection(db, 'dues'),
+            where('tenantUid', '==', item.tenantUid || ''),
+            where('billingMonth', '==', item.billingMonth || '')
+          );
+          const currentDueSnapshot = await getDocs(currentDueQuery);
+          const currentDueDoc = currentDueSnapshot.docs[0] || null;
+          const currentDueData = currentDueDoc?.data?.() || {};
+
+          if (currentDueDoc) {
+            await updateDoc(doc(db, 'dues', currentDueDoc.id), {
+              status: 'Paid',
+              updatedBy: user.uid,
+              updatedByEmail: user.email || null,
+              updatedAt: serverTimestamp(),
+            });
+          }
+
+          const nextBillingMonth = getNextBillingMonthLabel(item.billingMonth || currentDueData.billingMonth || '');
+          if (nextBillingMonth) {
+            const nextDueQuery = query(
+              collection(db, 'dues'),
+              where('tenantUid', '==', item.tenantUid || ''),
+              where('billingMonth', '==', nextBillingMonth)
+            );
+            const nextDueSnapshot = await getDocs(nextDueQuery);
+
+            if (nextDueSnapshot.empty) {
+              const monthlyRate = Number(currentDueData.monthlyRate || item.monthlyRate || item.amount || 0);
+              const baseDueDate = parseDateValue(currentDueData.dueDate || item.dueDate);
+              const nextDueDate = baseDueDate
+                ? new Date(baseDueDate.getFullYear(), baseDueDate.getMonth() + 1, baseDueDate.getDate())
+                : new Date();
+
+              await addDoc(collection(db, 'dues'), {
+                tenantUid: item.tenantUid,
+                tenantEmail: item.tenantEmail,
+                roomNo: currentDueData.roomNo || item.tenantRoomNo || item.roomNo || '',
+                billingMonth: nextBillingMonth,
+                dueDate: nextDueDate.toISOString().slice(0, 10),
+                monthlyRate,
+                electricBill: 0,
+                amount: monthlyRate,
+                status: 'Pending',
+                createdAt: serverTimestamp(),
+                createdBy: user.uid,
+                updatedAt: serverTimestamp(),
+                updatedBy: user.uid,
+                updatedByEmail: user.email || null,
+              });
+            }
+          }
+        }
       } else {
         await updateDoc(doc(db, 'dues', item.id), {
           status: nextStatus === 'Approved' ? 'Paid' : 'Overdue',

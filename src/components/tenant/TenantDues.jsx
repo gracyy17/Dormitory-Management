@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { addDoc, collection, doc, getDoc, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import StatusBadge from '../common/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +10,7 @@ import {
   buildCalendarMatrix,
   buildMonthYearOptions,
   formatDateYmd,
+  getNextBillingMonthLabel,
   getMonthYearFromRecord,
   parseDateValue,
   toDisplayPaymentStatus,
@@ -396,6 +397,64 @@ function TenantDues() {
         reviewedAt: null,
         reviewedBy: null,
       });
+
+      const normalizedVerificationStatus = String(verification.status || '').toLowerCase();
+      const isAutoPaid = ['approved', 'verified', 'paid'].includes(normalizedVerificationStatus);
+
+      if (isAutoPaid) {
+        const currentDueQuery = query(
+          collection(db, 'dues'),
+          where('tenantUid', '==', user.uid),
+          where('billingMonth', '==', currentDue.billingMonth || '')
+        );
+        const currentDueSnapshot = await getDocs(currentDueQuery);
+        const currentDueDoc = currentDueSnapshot.docs[0] || null;
+        const currentDueData = currentDueDoc?.data?.() || {};
+
+        if (currentDueDoc) {
+          await updateDoc(doc(db, 'dues', currentDueDoc.id), {
+            status: 'Paid',
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid,
+            updatedByEmail: user.email,
+          });
+        }
+
+        const nextBillingMonth = getNextBillingMonthLabel(currentDue.billingMonth || currentDueData.billingMonth || '');
+        if (nextBillingMonth) {
+          const nextDueQuery = query(
+            collection(db, 'dues'),
+            where('tenantUid', '==', user.uid),
+            where('billingMonth', '==', nextBillingMonth)
+          );
+          const nextDueSnapshot = await getDocs(nextDueQuery);
+
+          if (nextDueSnapshot.empty) {
+            const monthlyRate = Number(currentDueData.monthlyRate || currentDueData.amount || currentDue.amountValue || 0);
+            const baseDueDate = parseDateValue(currentDueData.dueDate || currentDue.dueDateRaw || currentDue.dueDate);
+            const nextDueDate = baseDueDate
+              ? new Date(baseDueDate.getFullYear(), baseDueDate.getMonth() + 1, baseDueDate.getDate())
+              : new Date();
+
+            await addDoc(collection(db, 'dues'), {
+              tenantUid: user.uid,
+              tenantEmail: user.email,
+              roomNo: currentDueData.roomNo || tenantRoomNo || '',
+              billingMonth: nextBillingMonth,
+              dueDate: nextDueDate.toISOString().slice(0, 10),
+              monthlyRate,
+              electricBill: 0,
+              amount: monthlyRate,
+              status: 'Pending',
+              createdAt: serverTimestamp(),
+              createdBy: user.uid,
+              updatedAt: serverTimestamp(),
+              updatedBy: user.uid,
+              updatedByEmail: user.email,
+            });
+          }
+        }
+      }
 
       setReceiptFile(null);
       setReceiptLink('');
