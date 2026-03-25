@@ -1456,12 +1456,39 @@
   }
 
   .tenant-sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    z-index: auto;
+    padding: 12px;
     border-right: 0;
     border-bottom: 1px solid #d4dbe6;
   }
 
   .tenant-content {
+    margin-left: 0;
     padding: 14px;
+  }
+
+  .tenant-sidebar-brand h2 {
+    font-size: 1.35rem;
+  }
+
+  .tenant-brand-mark .brand-t,
+  .tenant-brand-mark .brand-p {
+    font-size: 2.5rem;
+  }
+
+  .tenant-nav-link,
+  .tenant-theme-toggle,
+  .tenant-logout {
+    min-height: 44px;
+  }
+
+  .tenant-logout {
+    margin-top: 6px;
   }
 
   .tenant-maintenance-history-table tbody tr td:nth-child(2) {
@@ -1475,5 +1502,55 @@
 
   .tenant-calendar-cell {
     min-height: 108px;
+  }
+}
+
+@media (max-width: 640px) {
+  .tenant-content {
+    padding: 12px;
+  }
+
+  .tenant-page {
+    gap: 12px;
+  }
+
+  .tenant-page-header h1,
+  .tenant-profile-page .tenant-page-header h1 {
+    font-size: 1.9rem;
+    line-height: 1.1;
+  }
+
+  .tenant-page-header p,
+  .tenant-profile-page .tenant-page-header p {
+    font-size: 0.98rem;
+  }
+
+  .tenant-profile-showcase-grid .tenant-profile-card,
+  .tenant-profile-showcase-grid .tenant-password-form {
+    padding: 16px;
+  }
+
+  .tenant-profile-showcase-grid .tenant-profile-card h3,
+  .tenant-profile-showcase-grid .tenant-password-form h3 {
+    font-size: 1.85rem;
+  }
+
+  .tenant-avatar.large,
+  .tenant-avatar.preview {
+    width: 136px;
+    height: 136px;
+  }
+
+  .tenant-profile-meta p {
+    font-size: 1.2rem;
+  }
+
+  .tenant-summary-card p {
+    font-size: 2rem;
+  }
+
+  .tenant-summary-card:nth-child(2) p,
+  .tenant-summary-card:nth-child(3) p {
+    font-size: 1.7rem;
   }
 }
