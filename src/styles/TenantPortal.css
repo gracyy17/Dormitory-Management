@@ -568,28 +568,30 @@
 
 .tenant-calendar-nav {
   margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.tenant-month-next-btn {
+.tenant-month-nav-btn {
   border: 1px solid #9fc3ea;
   border-radius: 10px;
   background: #e8f2ff;
   color: #1f3f64;
   font-weight: 700;
-  min-height: 38px;
-  padding: 0 14px;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.tenant-month-next-btn:hover:not(:disabled) {
+.tenant-month-nav-btn:hover {
   background: #dcedff;
   border-color: #8cb3df;
-}
-
-.tenant-month-next-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 .tenant-filter-bar {
@@ -1389,13 +1391,13 @@
 }
 
 .tenant-layout.is-dark .tenant-upload-btn,
-.tenant-layout.is-dark .tenant-month-next-btn {
+.tenant-layout.is-dark .tenant-month-nav-btn {
   border-color: #3a5674;
   background: #1c2d42;
   color: #d4e4f6;
 }
 
-.tenant-layout.is-dark .tenant-month-next-btn:hover:not(:disabled) {
+.tenant-layout.is-dark .tenant-month-nav-btn:hover {
   background: #233851;
   border-color: #456388;
 }

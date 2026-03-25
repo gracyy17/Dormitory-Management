@@ -8,13 +8,27 @@ import { verifyPaymentReference } from '../../lib/paymentVerification';
 import { CalendarIcon, CardIcon, UploadIcon } from '../common/LineIcons';
 import {
   buildCalendarMatrix,
-  buildMonthYearOptions,
   formatDateYmd,
   getNextBillingMonthLabel,
   getMonthYearFromRecord,
   parseDateValue,
   toDisplayPaymentStatus,
 } from '../../lib/paymentCalendar';
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 const formatPeso = (value) => `P${Number(value || 0).toLocaleString('en-PH')}`;
 
@@ -33,7 +47,9 @@ function TenantDues() {
   const [tenantProfileImageUrl, setTenantProfileImageUrl] = useState('');
   const [tenantRoomNo, setTenantRoomNo] = useState('');
   const [tenantName, setTenantName] = useState('');
-  const [selectedMonthKey, setSelectedMonthKey] = useState('');
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
+  const [hasManualCalendarNavigation, setHasManualCalendarNavigation] = useState(false);
   const paymongoCheckoutUrl = import.meta.env.VITE_PAYMONGO_CHECKOUT_URL;
   const gcashQrImageUrl = String(import.meta.env.VITE_GCASH_QR_IMAGE_URL || '').trim();
   const gcashQrPayload = String(import.meta.env.VITE_GCASH_QR_PAYLOAD || '').trim();
@@ -105,54 +121,40 @@ function TenantDues() {
     };
   }, [dueRows, currentDue]);
 
-  const monthYearOptions = useMemo(() => buildMonthYearOptions(dueRows), [dueRows]);
-
-  const calendarMonthOptions = useMemo(() => {
-    return [...monthYearOptions].sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      return a.month - b.month;
-    });
-  }, [monthYearOptions]);
-
   useEffect(() => {
-    if (!calendarMonthOptions.length) {
-      setSelectedMonthKey('');
+    if (hasManualCalendarNavigation) return;
+    if (!currentDue?.dueDateRaw) return;
+
+    setSelectedYear(currentDue.dueDateRaw.getFullYear());
+    setSelectedMonth(currentDue.dueDateRaw.getMonth());
+  }, [currentDue?.dueDateRaw, hasManualCalendarNavigation]);
+
+  const handlePreviousMonth = () => {
+    setHasManualCalendarNavigation(true);
+    if (selectedMonth === 0) {
+      setSelectedMonth(11);
+      setSelectedYear((prev) => prev - 1);
       return;
     }
-
-    const hasValidSelection = calendarMonthOptions.some((item) => item.key === selectedMonthKey);
-    if (!hasValidSelection) {
-      setSelectedMonthKey(calendarMonthOptions[0].key);
-    }
-  }, [calendarMonthOptions, selectedMonthKey]);
-
-  const selectedMonthOption = useMemo(() => {
-    return calendarMonthOptions.find((item) => item.key === selectedMonthKey) || null;
-  }, [calendarMonthOptions, selectedMonthKey]);
-
-  const selectedMonthIndex = useMemo(() => {
-    return calendarMonthOptions.findIndex((item) => item.key === selectedMonthKey);
-  }, [calendarMonthOptions, selectedMonthKey]);
-
-  const canGoToNextMonth = selectedMonthIndex >= 0 && selectedMonthIndex < calendarMonthOptions.length - 1;
+    setSelectedMonth((prev) => prev - 1);
+  };
 
   const handleNextMonth = () => {
-    if (!canGoToNextMonth) return;
-    const nextOption = calendarMonthOptions[selectedMonthIndex + 1];
-    if (nextOption) {
-      setSelectedMonthKey(nextOption.key);
+    setHasManualCalendarNavigation(true);
+    if (selectedMonth === 11) {
+      setSelectedMonth(0);
+      setSelectedYear((prev) => prev + 1);
+      return;
     }
+    setSelectedMonth((prev) => prev + 1);
   };
 
   const monthlyDueRows = useMemo(() => {
-    if (!selectedMonthOption) return [];
-    return dueRows.filter(
-      (row) => row.year === selectedMonthOption.year && row.month === selectedMonthOption.month
-    );
-  }, [dueRows, selectedMonthOption]);
+    return dueRows.filter((row) => row.year === selectedYear && row.month === selectedMonth);
+  }, [dueRows, selectedMonth, selectedYear]);
 
-  const selectedYearNumber = selectedMonthOption?.year;
-  const selectedMonthNumber = selectedMonthOption?.month;
+  const selectedYearNumber = selectedYear;
+  const selectedMonthNumber = selectedMonth;
 
   const calendarWeeks = useMemo(() => {
     if (!Number.isInteger(selectedYearNumber) || !Number.isInteger(selectedMonthNumber)) {
@@ -198,8 +200,8 @@ function TenantDues() {
   }, [monthlyDueRows]);
 
   const selectedLabel = useMemo(() => {
-    return selectedMonthOption?.label || 'No month selected';
-  }, [selectedMonthOption]);
+    return `${MONTH_NAMES[selectedMonth]} ${selectedYear}`;
+  }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
     if (!db || !user?.uid) {
@@ -714,11 +716,19 @@ function TenantDues() {
           <div className="tenant-calendar-nav">
             <button
               type="button"
-              className="tenant-month-next-btn"
-              onClick={handleNextMonth}
-              disabled={!canGoToNextMonth}
+              className="tenant-month-nav-btn"
+              onClick={handlePreviousMonth}
+              aria-label="Previous month"
             >
-              Next Month
+              ←
+            </button>
+            <button
+              type="button"
+              className="tenant-month-nav-btn"
+              onClick={handleNextMonth}
+              aria-label="Next month"
+            >
+              →
             </button>
           </div>
         </div>
