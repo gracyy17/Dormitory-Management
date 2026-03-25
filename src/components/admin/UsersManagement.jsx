@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   collection,
+  deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
+  query,
   serverTimestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
 import LoadingState from '../common/LoadingState';
@@ -133,6 +137,51 @@ function UsersManagement() {
     }
   };
 
+  const normalizeRoomStatus = (status, occupiedBeds, capacity) => {
+    if (String(status || '') === 'Maintenance') return 'Maintenance';
+    if (occupiedBeds <= 0) return 'Available';
+    if (occupiedBeds >= capacity && capacity > 0) return 'Occupied';
+    return 'Available';
+  };
+
+  const deleteAccountViaFirestoreFallback = async (row) => {
+    const duesQuery = query(collection(db, 'dues'), where('tenantUid', '==', row.id));
+    const duesSnapshot = await getDocs(duesQuery);
+    for (const dueDoc of duesSnapshot.docs) {
+      await deleteDoc(doc(db, 'dues', dueDoc.id));
+    }
+
+    const paymentsQuery = query(collection(db, 'payments'), where('tenantUid', '==', row.id));
+    const paymentsSnapshot = await getDocs(paymentsQuery);
+    for (const paymentDoc of paymentsSnapshot.docs) {
+      await deleteDoc(doc(db, 'payments', paymentDoc.id));
+    }
+
+    const maintenanceQuery = query(collection(db, 'maintenanceRequests'), where('tenantUid', '==', row.id));
+    const maintenanceSnapshot = await getDocs(maintenanceQuery);
+    for (const requestDoc of maintenanceSnapshot.docs) {
+      await deleteDoc(doc(db, 'maintenanceRequests', requestDoc.id));
+    }
+
+    if (row.roomNo && row.roomNo !== '-') {
+      const roomsQuery = query(collection(db, 'rooms'), where('roomNo', '==', row.roomNo));
+      const roomsSnapshot = await getDocs(roomsQuery);
+      for (const roomDoc of roomsSnapshot.docs) {
+        const roomData = roomDoc.data() || {};
+        const capacity = Number(roomData.capacity || 0);
+        const occupiedBeds = Math.max(0, Number(roomData.occupiedBeds || 0) - 1);
+
+        await updateDoc(doc(db, 'rooms', roomDoc.id), {
+          occupiedBeds,
+          status: normalizeRoomStatus(roomData.status, occupiedBeds, capacity),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    }
+
+    await deleteDoc(doc(db, 'users', row.id));
+  };
+
   const handleDeleteAccount = async (row) => {
     if (!db) return;
 
@@ -150,6 +199,14 @@ function UsersManagement() {
     setSuccess('');
 
     try {
+      const useFunctionDelete = String(import.meta.env.VITE_USE_FUNCTION_DELETE || '').toLowerCase() === 'true';
+
+      if (!useFunctionDelete) {
+        await deleteAccountViaFirestoreFallback(row);
+        setSuccess(`Deleted ${row.email} using Firestore fallback (auth account may remain until function delete is enabled).`);
+        return;
+      }
+
       if (!deleteAccountEndpoints.length) {
         setError('Delete endpoint is not configured. Deploy functions and set VITE_DELETE_USER_ACCOUNT_URL if needed.');
         return;
@@ -190,8 +247,11 @@ function UsersManagement() {
       }
 
       if (!response || !response.ok) {
-        if (String(lastError?.message || '').toLowerCase().includes('failed to fetch')) {
-          throw new Error('Delete service unreachable. Deploy Cloud Functions and verify endpoint URL/network.');
+        const lastErrorMessage = String(lastError?.message || '').toLowerCase();
+        if (lastErrorMessage.includes('failed to fetch') || lastErrorMessage.includes('cors')) {
+          await deleteAccountViaFirestoreFallback(row);
+          setSuccess(`Deleted ${row.email} using Firestore fallback (auth account may remain if Cloud Function is unavailable).`);
+          return;
         }
         throw lastError || new Error('Delete request failed.');
       }

@@ -54,14 +54,14 @@ service cloud.firestore {
           || request.resource.data.mustChangePassword == false
         )
       );
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     match /payments/{paymentId} {
       allow create: if isSignedIn() && request.resource.data.tenantUid == request.auth.uid;
       allow read: if isAdmin() || (isSignedIn() && resource.data.tenantUid == request.auth.uid);
       allow update: if isAdmin();
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     match /dues/{dueId} {
@@ -73,7 +73,7 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.tenantUid == request.auth.uid;
       allow read: if isAdmin() || (isSignedIn() && resource.data.tenantUid == request.auth.uid);
       allow update: if isAdmin();
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     match /rooms/{roomId} {
