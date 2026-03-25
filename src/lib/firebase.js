@@ -14,12 +14,9 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-const inferredAppspotBucket = firebaseConfig.projectId ? `${firebaseConfig.projectId}.appspot.com` : '';
 const configuredStorageBucket = String(firebaseConfig.storageBucket || '').trim();
-const shouldUseAppspotAlias = configuredStorageBucket.endsWith('.firebasestorage.app') && Boolean(inferredAppspotBucket);
-const resolvedStorageBucket = shouldUseAppspotAlias
-  ? inferredAppspotBucket
-  : configuredStorageBucket || inferredAppspotBucket;
+const inferredAppspotBucket = firebaseConfig.projectId ? `${firebaseConfig.projectId}.appspot.com` : '';
+const resolvedStorageBucket = configuredStorageBucket || inferredAppspotBucket;
 
 const requiredFirebaseConfig = {
   apiKey: firebaseConfig.apiKey,
