@@ -9,16 +9,42 @@ on:
       - public-page
 
 jobs:
-  deploy:
+  validate:
     runs-on: ubuntu-latest
-    name: Deploy to Firebase Hosting
+    name: Validate Before Deploy
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build project
+        run: npm run build
+
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Firebase Hosting
+    needs: validate
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/dorm-27fe2-firebase-adminsdk-fbsvc-634e7e241c.json
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
         with:
           node-version: '18'
           cache: 'npm'
@@ -36,19 +62,30 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
 
-      - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
-          channelId: live
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
 
-      - name: 🚀 Deployment successful
-        run: echo "Application deployed to Firebase Hosting!"
-
-      - name: ❌ Deployment failed
-        if: failure()
+      - name: Create service account file from secret
+        shell: bash
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_SERVICE_ACCOUNT_DORM_27FE2: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DORM_27FE2 }}
         run: |
-          echo "Deployment to Firebase failed."
-          exit 1
+          set -euo pipefail
+
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT_DORM_27FE2" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_DORM_27FE2" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          else
+            echo "Missing Firebase service account secret. Add FIREBASE_SERVICE_ACCOUNT in GitHub Actions secrets."
+            exit 1
+          fi
+
+      - name: Verify service account file
+        run: |
+          test -s "$GOOGLE_APPLICATION_CREDENTIALS"
+          echo "Service account file found."
+
+      - name: Deploy to Firebase Hosting
+        run: firebase deploy --only hosting --project dorm-27fe2 --non-interactive
