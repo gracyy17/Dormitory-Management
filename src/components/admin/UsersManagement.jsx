@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   collection,
-  deleteDoc,
   doc,
   getDocs,
   onSnapshot,
@@ -12,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
 import StatusBadge from '../common/StatusBadge';
-import { db } from '../../lib/firebase';
+import { auth, db } from '../../lib/firebase';
 import { LockIcon, MailIcon, UnlockIcon, UserIcon, UsersIcon, XCircleIcon } from '../common/LineIcons';
 
 const formatDate = (value) => {
@@ -122,8 +121,13 @@ function UsersManagement() {
   const handleDeleteAccount = async (row) => {
     if (!db) return;
 
+    if (row.id === auth.currentUser?.uid) {
+      setError('You cannot delete your own admin account from this page.');
+      return;
+    }
+
     const shouldDelete = window.confirm(
-      `Delete account ${row.email}? This will also remove related dues and payment records.`
+      `Archive account ${row.email}? This will remove the tenant from active lists and release the room slot.`
     );
     if (!shouldDelete) return;
 
@@ -135,13 +139,11 @@ function UsersManagement() {
         const duesQuery = query(collection(db, 'dues'), where('tenantUid', '==', row.id));
         const duesSnapshot = await getDocs(duesQuery);
         for (const dueDoc of duesSnapshot.docs) {
-          await deleteDoc(doc(db, 'dues', dueDoc.id));
-        }
-
-        const paymentsQuery = query(collection(db, 'payments'), where('tenantUid', '==', row.id));
-        const paymentsSnapshot = await getDocs(paymentsQuery);
-        for (const paymentDoc of paymentsSnapshot.docs) {
-          await deleteDoc(doc(db, 'payments', paymentDoc.id));
+          await updateDoc(doc(db, 'dues', dueDoc.id), {
+            status: 'Archived',
+            updatedAt: serverTimestamp(),
+            updatedBy: auth.currentUser?.uid || null,
+          });
         }
 
         if (row.roomNo && row.roomNo !== '-') {
@@ -162,10 +164,20 @@ function UsersManagement() {
         }
       }
 
-      await deleteDoc(doc(db, 'users', row.id));
-      setSuccess(`Deleted account ${row.email}.`);
-    } catch {
-      setError('Unable to delete account right now.');
+      await updateDoc(doc(db, 'users', row.id), {
+        role: 'archived',
+        roomNo: '',
+        roomBed: null,
+        notifyEmail: false,
+        archivedAt: serverTimestamp(),
+        archivedBy: auth.currentUser?.uid || null,
+        updatedAt: serverTimestamp(),
+      });
+
+      setSuccess(`Archived account ${row.email}.`);
+    } catch (deleteError) {
+      const message = typeof deleteError?.message === 'string' ? deleteError.message : '';
+      setError(message ? `Unable to archive account right now: ${message}` : 'Unable to archive account right now.');
     }
   };
 
