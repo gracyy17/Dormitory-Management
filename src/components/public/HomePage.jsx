@@ -130,6 +130,7 @@ function HomePage() {
             <h2>Contact & Inquiries</h2>
             <p>Email: mzdormitory@example.com</p>
             <p>Mobile: +63 912 345 6789</p>
+            <p>Address: Brgy. Sumapang Bata, Malolos City, Bulacan</p>
           </div>
           <Link className="btn btn-primary" to="/tenant/login">Go to Tenant Login</Link>
         </section>
