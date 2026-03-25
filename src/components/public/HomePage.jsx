@@ -94,6 +94,19 @@ function HomePage() {
           </article>
         </section>
 
+        <section className="section about-frame glass-panel reveal-up delay-3">
+          <div className="section-head">
+            <h2>About Us</h2>
+            <p>
+              MZ Dormitory provides student-friendly living spaces built for comfort, safety, and focused daily routines.
+            </p>
+          </div>
+          <div className="essential-info">
+            <p>Essential Info</p>
+            <strong>Nearest Landmark: [Placeholder]</strong>
+          </div>
+        </section>
+
         <section className="section section-grid">
           <article className="room-offer glass-panel reveal-up delay-3">
             <div className="section-head">
@@ -130,8 +143,6 @@ function HomePage() {
             <h2>Contact & Inquiries</h2>
             <p>Email: mzdormitory@example.com</p>
             <p>Mobile: +63 912 345 6789</p>
-            <p>Address: Brgy. Sumapang Bata, Malolos City, Bulacan</p>
-            <p>Address: Brgy. Sumapang Bata, Malolos City, Bulacan</p>
           </div>
           <Link className="btn btn-primary" to="/admin/login">Go to Admin Login</Link>
         </section>
