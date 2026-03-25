@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
 import DataTable from '../common/DataTable';
+import Modal from '../common/Modal';
 import StatusBadge from '../common/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { auth, db } from '../../lib/firebase';
@@ -45,6 +46,12 @@ function PaymentsManagement() {
   const [reminderMessage, setReminderMessage] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
+  const [receiptPreview, setReceiptPreview] = useState({
+    isOpen: false,
+    url: '',
+    tenantEmail: '',
+    billingMonth: '',
+  });
 
   const reminderEndpoint = useMemo(() => {
     const configuredEndpoint = String(import.meta.env.VITE_SEND_DUE_REMINDERS_URL || '').trim();
@@ -466,6 +473,31 @@ function PaymentsManagement() {
     }
   };
 
+  const isImageReceiptUrl = (url) => {
+    const normalized = String(url || '').toLowerCase();
+    return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/.test(normalized)
+      || normalized.includes('res.cloudinary.com')
+      || normalized.includes('/image/upload/');
+  };
+
+  const openReceiptPreview = (url, row) => {
+    setReceiptPreview({
+      isOpen: true,
+      url,
+      tenantEmail: row?.tenantEmail || '-',
+      billingMonth: row?.billingMonth || '-',
+    });
+  };
+
+  const closeReceiptPreview = () => {
+    setReceiptPreview({
+      isOpen: false,
+      url: '',
+      tenantEmail: '',
+      billingMonth: '',
+    });
+  };
+
   const handleSendRemindersNow = async () => {
     setReminderMessage('');
 
@@ -551,6 +583,11 @@ function PaymentsManagement() {
     },
     { key: 'billingMonth', label: 'Billing Month' },
     { key: 'amount', label: 'Amount' },
+    {
+      key: 'electricBill',
+      label: 'Electric Bill',
+      render: (value) => formatPeso(value || 0),
+    },
     { key: 'method', label: 'Method' },
     { key: 'referenceNumber', label: 'Reference No.' },
     {

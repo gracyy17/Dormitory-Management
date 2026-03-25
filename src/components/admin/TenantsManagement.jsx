@@ -666,26 +666,6 @@ function TenantsManagement({ section = 'all' }) {
       ),
     },
     { key: 'dueDate', label: 'Due Date' },
-    {
-      key: 'monthlyRateValue',
-      label: 'Monthly Rate',
-      render: (value) => formatAmount(value),
-    },
-    {
-      key: 'electricBillValue',
-      label: 'Electric Bill',
-      render: (value) => formatAmount(value),
-    },
-    { key: 'amount', label: 'Amount' },
-    {
-      key: 'paymentStatus',
-      label: 'Payment Status',
-      render: (status) => (
-        <StatusBadge status={status} type={String(status || '').toLowerCase().replace(' ', '-')} />
-      ),
-    },
-    { key: 'updatedBy', label: 'Updated By' },
-    { key: 'updatedAt', label: 'Updated At' },
   ];
 
   const tenantActions = [
