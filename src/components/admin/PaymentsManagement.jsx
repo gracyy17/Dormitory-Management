@@ -20,7 +20,6 @@ import {
   buildCalendarMatrix,
   buildMonthYearOptions,
   formatDateYmd,
-  getMonthYearFromRecord,
   getNextBillingMonthLabel,
   parseDateValue,
   toDisplayPaymentStatus,
@@ -193,10 +192,13 @@ function PaymentsManagement() {
     return dues
       .map((due) => {
         const dueDateRaw = parseDateValue(due.dueDate);
-        const monthYear = getMonthYearFromRecord({
-          billingMonth: due.billingMonth,
-          dueDate: dueDateRaw,
-        });
+        const monthYear = dueDateRaw
+          ? {
+              year: dueDateRaw.getFullYear(),
+              month: dueDateRaw.getMonth(),
+              label: dueDateRaw.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            }
+          : null;
 
         if (!monthYear) return null;
 

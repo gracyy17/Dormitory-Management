@@ -11,7 +11,6 @@ import {
   buildCalendarMatrix,
   formatDateYmd,
   getNextBillingMonthLabel,
-  getMonthYearFromRecord,
   parseDateValue,
   toDisplayPaymentStatus,
 } from '../../lib/paymentCalendar';
@@ -75,10 +74,12 @@ function TenantDues() {
       .map((due) => {
         const dueDate = parseDateValue(due.dueDate);
         const status = toDisplayPaymentStatus(due.status, dueDate);
-        const monthYear = getMonthYearFromRecord({
-          billingMonth: due.billingMonth,
-          dueDate,
-        });
+        const monthYear = dueDate
+          ? {
+              year: dueDate.getFullYear(),
+              month: dueDate.getMonth(),
+            }
+          : null;
 
         if (!monthYear) return null;
 

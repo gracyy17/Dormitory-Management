@@ -53,12 +53,13 @@ input, select, textarea {
   grid-template-columns: auto 1fr;
   gap: 12px;
   align-items: center;
-  padding: 14px;
+  padding: 16px;
   border: 1px solid #d7e1ee;
-  border-radius: 12px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #f7fbff 0%, #edf4fd 100%);
   position: relative;
   overflow: hidden;
+  box-shadow: 0 8px 16px rgba(72, 112, 158, 0.12);
 }
 
 .app-loading-state.compact {
@@ -66,12 +67,12 @@ input, select, textarea {
 }
 
 .app-loading-spinner {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
-  border: 2px solid #bad0ea;
-  border-top-color: #2f78bf;
-  animation: app-spin 0.9s linear infinite;
+  border: 3px solid #b9d0eb;
+  border-top-color: #1f73c8;
+  animation: app-spin 0.8s linear infinite;
 }
 
 .app-loading-content {
@@ -82,22 +83,22 @@ input, select, textarea {
 .app-loading-title {
   margin: 0;
   font-weight: 700;
-  color: #1c334f;
-  font-size: 0.95rem;
+  color: #17324f;
+  font-size: 1rem;
 }
 
 .app-loading-message {
   margin: 0;
-  color: #4f6b8d;
-  font-size: 0.84rem;
+  color: #3f618b;
+  font-size: 0.88rem;
 }
 
 .app-loading-shimmer {
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, rgba(255, 255, 255, 0) 22%, rgba(255, 255, 255, 0.45) 45%, rgba(255, 255, 255, 0) 68%);
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0) 18%, rgba(255, 255, 255, 0.56) 46%, rgba(255, 255, 255, 0) 72%);
   transform: translateX(-100%);
-  animation: app-shimmer 1.8s ease-in-out infinite;
+  animation: app-shimmer 1.35s ease-in-out infinite;
   pointer-events: none;
 }
 
