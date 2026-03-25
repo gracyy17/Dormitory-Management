@@ -36,7 +36,13 @@ function TenantDues() {
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
   const paymongoCheckoutUrl = import.meta.env.VITE_PAYMONGO_CHECKOUT_URL;
-  const gcashQrImageUrl = import.meta.env.VITE_GCASH_QR_IMAGE_URL;
+  const gcashQrImageUrl = String(import.meta.env.VITE_GCASH_QR_IMAGE_URL || '').trim();
+  const gcashQrPayload = String(import.meta.env.VITE_GCASH_QR_PAYLOAD || '').trim();
+  const gcashQrResolvedUrl = useMemo(() => {
+    if (gcashQrImageUrl) return gcashQrImageUrl;
+    if (!gcashQrPayload) return '';
+    return `https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=${encodeURIComponent(gcashQrPayload)}`;
+  }, [gcashQrImageUrl, gcashQrPayload]);
   const isStorageUploadEnabled = import.meta.env.VITE_ENABLE_STORAGE_UPLOAD === 'true';
   const cloudinaryCloudName = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
   const cloudinaryUploadPreset = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
@@ -581,8 +587,8 @@ function TenantDues() {
             <form className="tenant-receipt-form" onSubmit={handleSubmitReceipt}>
               <div className="tenant-gcash-layout">
                 <div className="tenant-gcash-preview tenant-gcash-preview-pane">
-                  {gcashQrImageUrl ? (
-                    <img className="tenant-gcash-qr" src={gcashQrImageUrl} alt="Admin GCash QR" />
+                  {gcashQrResolvedUrl ? (
+                    <img className="tenant-gcash-qr" src={gcashQrResolvedUrl} alt="Admin GCash QR" />
                   ) : (
                     <div className="tenant-gcash-placeholder">
                       <span>QR</span>
@@ -592,9 +598,9 @@ function TenantDues() {
                   <div>
                     <p className="tenant-gcash-title">Scan to pay via GCash</p>
                     <p className="tenant-gcash-help">
-                      {gcashQrImageUrl
+                      {gcashQrResolvedUrl
                         ? 'Use your GCash app, complete payment, then upload your receipt details.'
-                        : 'Configure VITE_GCASH_QR_IMAGE_URL in .env to display your QR code.'}
+                        : 'Configure VITE_GCASH_QR_IMAGE_URL or VITE_GCASH_QR_PAYLOAD in .env to display your QR code.'}
                     </p>
                     <div className="tenant-gcash-due-meta">
                       <span>Billing: {currentDue?.billingMonth || 'No pending due'}</span>
