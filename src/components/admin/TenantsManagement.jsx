@@ -101,6 +101,14 @@ const splitRoomElectricBill = (roomElectricTotal, occupantCount) => {
   return Number((total / count).toFixed(2));
 };
 
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+
+const resolveTenantUid = (tenantUid, tenantEmail, tenantIds, tenantIdByEmail) => {
+  if (tenantUid && tenantIds.has(tenantUid)) return tenantUid;
+  const byEmail = tenantIdByEmail.get(normalizeEmail(tenantEmail));
+  return byEmail || '';
+};
+
 function TenantsManagement({ section = 'all' }) {
   const { user, createTenantAccount, isFirebaseConfigured } = useAuth();
 
@@ -254,11 +262,23 @@ function TenantsManagement({ section = 'all' }) {
     });
   }, [selectedRoom, availableBedNumbers]);
 
+  const tenantIds = useMemo(() => new Set(tenants.map((tenant) => tenant.id)), [tenants]);
+
+  const tenantIdByEmail = useMemo(() => {
+    const map = new Map();
+    tenants.forEach((tenant) => {
+      const email = normalizeEmail(tenant.email);
+      if (!email) return;
+      map.set(email, tenant.id);
+    });
+    return map;
+  }, [tenants]);
+
   const paymentByTenant = useMemo(() => {
     const map = new Map();
 
     payments.forEach((payment) => {
-      const tenantUid = payment.tenantUid;
+      const tenantUid = resolveTenantUid(payment.tenantUid, payment.tenantEmail, tenantIds, tenantIdByEmail);
       if (!tenantUid) return;
 
       const current = map.get(tenantUid);
@@ -271,13 +291,13 @@ function TenantsManagement({ section = 'all' }) {
     });
 
     return map;
-  }, [payments]);
+  }, [payments, tenantIds, tenantIdByEmail]);
 
   const dueByTenant = useMemo(() => {
     const map = new Map();
 
     dues.forEach((due) => {
-      const tenantUid = due.tenantUid;
+      const tenantUid = resolveTenantUid(due.tenantUid, due.tenantEmail, tenantIds, tenantIdByEmail);
       if (!tenantUid) return;
 
       const current = map.get(tenantUid);
@@ -290,7 +310,7 @@ function TenantsManagement({ section = 'all' }) {
     });
 
     return map;
-  }, [dues]);
+  }, [dues, tenantIds, tenantIdByEmail]);
 
   const tenantRows = useMemo(() => {
     return tenants
