@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import DataTable from '../common/DataTable';
 import Modal from '../common/Modal';
+import LoadingState from '../common/LoadingState';
 import StatusBadge from '../common/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/firebase';
@@ -1167,7 +1168,7 @@ function TenantsManagement({ section = 'all' }) {
           {updatingDueId && <p>Updating due status...</p>}
 
           {isTenantListLoading ? (
-            <p>Loading tenants...</p>
+            <LoadingState title="Loading Tenants" message="Fetching tenant profiles and dues status..." compact />
           ) : (
             <DataTable columns={tenantColumns} data={filteredTenantRows} actions={tenantActions} />
           )}

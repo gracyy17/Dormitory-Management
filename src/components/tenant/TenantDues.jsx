@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import StatusBadge from '../common/StatusBadge';
+import LoadingState from '../common/LoadingState';
 import { useAuth } from '../../context/AuthContext';
 import { db, storage } from '../../lib/firebase';
 import { verifyPaymentReference } from '../../lib/paymentVerification';
@@ -681,7 +682,7 @@ function TenantDues() {
         </div>
 
         {isDuesLoading ? (
-          <p>Loading dues...</p>
+          <LoadingState title="Loading Dues" message="Preparing your monthly dues ledger..." compact />
         ) : monthlyDueRows.length === 0 ? (
           <p>No dues found for this month and year.</p>
         ) : (
@@ -787,7 +788,7 @@ function TenantDues() {
         </div>
 
         {isHistoryLoading ? (
-          <p>Loading payment history...</p>
+          <LoadingState title="Loading History" message="Fetching your payment records..." compact />
         ) : paymentHistory.length === 0 ? (
           <div className="tenant-history-empty">
             <p>No previous payments found.</p>

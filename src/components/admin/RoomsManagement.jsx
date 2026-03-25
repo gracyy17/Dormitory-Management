@@ -12,6 +12,7 @@ import AdminLayout from './AdminLayout';
 import Modal from '../common/Modal';
 import DataTable from '../common/DataTable';
 import StatusBadge from '../common/StatusBadge';
+import LoadingState from '../common/LoadingState';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -646,7 +647,7 @@ function RoomsManagement() {
           </button>
         </section>
 
-        {isLoading && <p>Loading rooms...</p>}
+        {isLoading && <LoadingState title="Loading Rooms" message="Gathering room and occupancy details..." compact />}
         {error && <p className="admin-feedback is-error">{error}</p>}
         {success && <p className="admin-feedback is-success">{success}</p>}
 

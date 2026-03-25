@@ -47,3 +47,95 @@ button {
 input, select, textarea {
   font-family: inherit;
 }
+
+.app-loading-state {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #d7e1ee;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f7fbff 0%, #edf4fd 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.app-loading-state.compact {
+  padding: 10px 12px;
+}
+
+.app-loading-spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid #bad0ea;
+  border-top-color: #2f78bf;
+  animation: app-spin 0.9s linear infinite;
+}
+
+.app-loading-content {
+  display: grid;
+  gap: 2px;
+}
+
+.app-loading-title {
+  margin: 0;
+  font-weight: 700;
+  color: #1c334f;
+  font-size: 0.95rem;
+}
+
+.app-loading-message {
+  margin: 0;
+  color: #4f6b8d;
+  font-size: 0.84rem;
+}
+
+.app-loading-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0) 22%, rgba(255, 255, 255, 0.45) 45%, rgba(255, 255, 255, 0) 68%);
+  transform: translateX(-100%);
+  animation: app-shimmer 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.admin-layout.dark-mode .app-loading-state,
+.tenant-layout.is-dark .app-loading-state {
+  border-color: #2e435d;
+  background: linear-gradient(135deg, #142437 0%, #182b41 100%);
+}
+
+.admin-layout.dark-mode .app-loading-title,
+.tenant-layout.is-dark .app-loading-title {
+  color: #e3eefc;
+}
+
+.admin-layout.dark-mode .app-loading-message,
+.tenant-layout.is-dark .app-loading-message {
+  color: #a9bfdc;
+}
+
+.admin-layout.dark-mode .app-loading-spinner,
+.tenant-layout.is-dark .app-loading-spinner {
+  border-color: #2f4f74;
+  border-top-color: #7eb8f2;
+}
+
+.admin-layout.dark-mode .app-loading-shimmer,
+.tenant-layout.is-dark .app-loading-shimmer {
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0) 22%, rgba(126, 184, 242, 0.16) 45%, rgba(255, 255, 255, 0) 68%);
+}
+
+@keyframes app-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes app-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
