@@ -15,13 +15,15 @@ import DataTable from '../common/DataTable';
 import StatusBadge from '../common/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { auth, db } from '../../lib/firebase';
-
-const parseDateValue = (value) => {
-  if (!value) return null;
-  if (typeof value?.toDate === 'function') return value.toDate();
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
+import {
+  buildCalendarMatrix,
+  buildMonthYearOptions,
+  formatDateYmd,
+  getMonthYearFromRecord,
+  getNextBillingMonthLabel,
+  parseDateValue,
+  toDisplayPaymentStatus,
+} from '../../lib/paymentCalendar';
 
 const formatDateTime = (value) => {
   const date = parseDateValue(value);
@@ -29,20 +31,7 @@ const formatDateTime = (value) => {
   return `${date.toISOString().slice(0, 10)} ${date.toTimeString().slice(0, 5)}`;
 };
 
-const parseBillingMonthLabel = (value) => {
-  const normalized = String(value || '').trim();
-  const match = normalized.match(/^([A-Za-z]+)\s+(\d{4})$/);
-  if (!match) return null;
-  const parsed = new Date(`${match[1]} 1, ${match[2]}`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const getNextBillingMonthLabel = (value) => {
-  const parsed = parseBillingMonthLabel(value);
-  if (!parsed) return '';
-  const next = new Date(parsed.getFullYear(), parsed.getMonth() + 1, 1);
-  return next.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-};
+const formatPeso = (value) => `P${Number(value || 0).toLocaleString('en-PH')}`;
 
 function PaymentsManagement() {
   const { user } = useAuth();
@@ -54,6 +43,8 @@ function PaymentsManagement() {
   const [error, setError] = useState('');
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [reminderMessage, setReminderMessage] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
 
   const reminderEndpoint = useMemo(() => {
     const configuredEndpoint = String(import.meta.env.VITE_SEND_DUE_REMINDERS_URL || '').trim();
@@ -141,6 +132,15 @@ function PaymentsManagement() {
     return map;
   }, [users]);
 
+  const tenantNameByUid = useMemo(() => {
+    const map = new Map();
+    users.forEach((tenant) => {
+      if (String(tenant.role || '').toLowerCase() !== 'tenant') return;
+      map.set(tenant.id, tenant.fullName || tenant.email || tenant.id || 'Unknown Tenant');
+    });
+    return map;
+  }, [users]);
+
   useEffect(() => {
     const paymentItems = payments.map((item) => ({
       ...item,
@@ -181,6 +181,140 @@ function PaymentsManagement() {
         return bTime - aTime;
       });
   }, [reviewItems]);
+
+  const monthlyDueRows = useMemo(() => {
+    return dues
+      .map((due) => {
+        const dueDateRaw = parseDateValue(due.dueDate);
+        const monthYear = getMonthYearFromRecord({
+          billingMonth: due.billingMonth,
+          dueDate: dueDateRaw,
+        });
+
+        if (!monthYear) return null;
+
+        return {
+          id: due.id,
+          tenantUid: due.tenantUid || '',
+          tenantName: tenantNameByUid.get(due.tenantUid) || due.tenantEmail || 'Unknown Tenant',
+          tenantEmail: due.tenantEmail || '-',
+          roomNo: due.roomNo || '-',
+          billingMonth: due.billingMonth || monthYear.label,
+          dueDateRaw,
+          dueDate: formatDateYmd(dueDateRaw),
+          amountValue: Number(due.amount || due.monthlyRate || 0),
+          amount: formatPeso(due.amount || due.monthlyRate || 0),
+          status: toDisplayPaymentStatus(due.status, dueDateRaw),
+          year: monthYear.year,
+          month: monthYear.month,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const left = a.dueDateRaw ? a.dueDateRaw.getTime() : 0;
+        const right = b.dueDateRaw ? b.dueDateRaw.getTime() : 0;
+        return left - right;
+      });
+  }, [dues, tenantNameByUid]);
+
+  const monthYearOptions = useMemo(() => buildMonthYearOptions(monthlyDueRows), [monthlyDueRows]);
+
+  const yearOptions = useMemo(() => {
+    const years = new Set(monthYearOptions.map((item) => item.year));
+    return Array.from(years).sort((a, b) => b - a);
+  }, [monthYearOptions]);
+
+  const monthOptions = useMemo(() => {
+    if (!selectedYear) return [];
+    return monthYearOptions
+      .filter((item) => String(item.year) === selectedYear)
+      .sort((a, b) => a.month - b.month);
+  }, [monthYearOptions, selectedYear]);
+
+  useEffect(() => {
+    if (!monthYearOptions.length) {
+      setSelectedYear('');
+      setSelectedMonth('');
+      return;
+    }
+
+    const hasValidSelection = monthYearOptions.some(
+      (item) => String(item.year) === selectedYear && String(item.month) === selectedMonth
+    );
+
+    if (!hasValidSelection) {
+      setSelectedYear(String(monthYearOptions[0].year));
+      setSelectedMonth(String(monthYearOptions[0].month));
+    }
+  }, [monthYearOptions, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    if (!selectedYear || !monthOptions.length) return;
+
+    const hasMonth = monthOptions.some((item) => String(item.month) === selectedMonth);
+    if (!hasMonth) {
+      setSelectedMonth(String(monthOptions[0].month));
+    }
+  }, [monthOptions, selectedMonth, selectedYear]);
+
+  const monthlyRows = useMemo(() => {
+    return monthlyDueRows
+      .filter((row) => String(row.year) === selectedYear && String(row.month) === selectedMonth)
+      .sort((a, b) => a.tenantName.localeCompare(b.tenantName));
+  }, [monthlyDueRows, selectedMonth, selectedYear]);
+
+  const selectedYearNumber = Number(selectedYear);
+  const selectedMonthNumber = Number(selectedMonth);
+
+  const calendarWeeks = useMemo(() => {
+    if (!Number.isInteger(selectedYearNumber) || !Number.isInteger(selectedMonthNumber)) {
+      return [];
+    }
+    return buildCalendarMatrix(selectedYearNumber, selectedMonthNumber);
+  }, [selectedMonthNumber, selectedYearNumber]);
+
+  const calendarEntriesByDay = useMemo(() => {
+    const map = new Map();
+
+    monthlyRows.forEach((row) => {
+      if (!row.dueDateRaw) return;
+      if (row.dueDateRaw.getFullYear() !== selectedYearNumber || row.dueDateRaw.getMonth() !== selectedMonthNumber) {
+        return;
+      }
+
+      const day = row.dueDateRaw.getDate();
+      if (!map.has(day)) {
+        map.set(day, []);
+      }
+
+      map.get(day).push({
+        id: row.id,
+        tenantName: row.tenantName,
+        status: row.status,
+      });
+    });
+
+    return map;
+  }, [monthlyRows, selectedMonthNumber, selectedYearNumber]);
+
+  const monthlyCounts = useMemo(() => {
+    return monthlyRows.reduce(
+      (acc, row) => {
+        if (row.status === 'Paid') acc.paid += 1;
+        else if (row.status === 'Overdue') acc.overdue += 1;
+        else acc.notPaid += 1;
+        return acc;
+      },
+      { paid: 0, notPaid: 0, overdue: 0 }
+    );
+  }, [monthlyRows]);
+
+  const selectedLabel = useMemo(() => {
+    const option = monthYearOptions.find(
+      (item) => String(item.year) === selectedYear && String(item.month) === selectedMonth
+    );
+    return option?.label || 'No month selected';
+  }, [monthYearOptions, selectedMonth, selectedYear]);
 
   const handleReview = async (item, nextStatus) => {
     if (!db || !user?.uid) return;
@@ -485,6 +619,129 @@ function PaymentsManagement() {
           )}
           {error && <p className="admin-feedback is-error">{error}</p>}
           {!isLoading && <DataTable columns={columns} data={reviewQueueItems} actions={actions} />}
+        </section>
+
+        <section className="dashboard-widget">
+          <div className="widget-header">
+            <h2>Monthly Payment Status - {selectedLabel}</h2>
+          </div>
+
+          <div className="payment-month-filter">
+            <label htmlFor="payment-year-select">Year</label>
+            <select
+              id="payment-year-select"
+              value={selectedYear}
+              onChange={(event) => setSelectedYear(event.target.value)}
+            >
+              {yearOptions.map((year) => (
+                <option key={year} value={String(year)}>{year}</option>
+              ))}
+            </select>
+
+            <label htmlFor="payment-month-select">Month</label>
+            <select
+              id="payment-month-select"
+              value={selectedMonth}
+              onChange={(event) => setSelectedMonth(event.target.value)}
+            >
+              {monthOptions.map((monthOption) => (
+                <option key={monthOption.key} value={String(monthOption.month)}>
+                  {monthOption.monthLabel}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="payment-month-summary">
+            <span className="summary-pill paid">Paid: {monthlyCounts.paid}</span>
+            <span className="summary-pill not-paid">Not Paid: {monthlyCounts.notPaid}</span>
+            <span className="summary-pill overdue">Overdue: {monthlyCounts.overdue}</span>
+          </div>
+
+          {!monthlyRows.length ? (
+            <p className="admin-feedback">No dues found for this month and year.</p>
+          ) : (
+            <div className="payment-month-table-wrap">
+              <table className="payment-month-table">
+                <thead>
+                  <tr>
+                    <th>Tenant</th>
+                    <th>Room</th>
+                    <th>Billing Month</th>
+                    <th>Due Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlyRows.map((row) => (
+                    <tr key={`month-row-${row.id}`}>
+                      <td>{row.tenantName}</td>
+                      <td>{row.roomNo}</td>
+                      <td>{row.billingMonth}</td>
+                      <td>{row.dueDate}</td>
+                      <td>{row.amount}</td>
+                      <td><StatusBadge status={row.status} type={row.status.toLowerCase().replace(' ', '-')} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section className="dashboard-widget">
+          <div className="widget-header">
+            <h2>Payment Calendar - {selectedLabel}</h2>
+          </div>
+
+          {calendarWeeks.length === 0 ? (
+            <p className="admin-feedback">No calendar data available.</p>
+          ) : (
+            <>
+              <div className="payment-calendar-head">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName) => (
+                  <span key={dayName}>{dayName}</span>
+                ))}
+              </div>
+
+              <div className="payment-calendar-grid">
+                {calendarWeeks.flatMap((week, weekIndex) =>
+                  week.map((day, dayIndex) => {
+                    const dayEntries = day ? (calendarEntriesByDay.get(day) || []) : [];
+
+                    return (
+                      <div
+                        key={`calendar-cell-${weekIndex}-${dayIndex}`}
+                        className={day ? 'payment-calendar-cell' : 'payment-calendar-cell is-empty'}
+                      >
+                        {day ? (
+                          <>
+                            <div className="payment-calendar-day">{day}</div>
+                            <div className="payment-calendar-entries">
+                              {dayEntries.length === 0 ? (
+                                <p className="calendar-empty-note">No dues</p>
+                              ) : (
+                                dayEntries.map((entry) => (
+                                  <div key={`entry-${entry.id}`} className="calendar-entry">
+                                    <span className="calendar-entry-name">{entry.tenantName}</span>
+                                    <StatusBadge
+                                      status={entry.status}
+                                      type={entry.status.toLowerCase().replace(' ', '-')}
+                                    />
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
         </section>
 
         <section className="dashboard-widget">

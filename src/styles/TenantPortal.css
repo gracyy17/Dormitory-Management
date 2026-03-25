@@ -542,6 +542,123 @@
   font-size: 0.88rem;
 }
 
+.tenant-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.tenant-filter-bar label {
+  font-size: 0.86rem;
+  color: #2a3a4e;
+  font-weight: 700;
+}
+
+.tenant-filter-bar select {
+  min-width: 140px;
+  border: 1px solid #c2d0e2;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #f8fbff;
+  color: #1d2c40;
+}
+
+.tenant-month-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tenant-month-summary .summary-pill {
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tenant-month-summary .summary-pill.paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.tenant-month-summary .summary-pill.not-paid {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.tenant-month-summary .summary-pill.overdue {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.tenant-calendar-head {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tenant-calendar-head span {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #3d526d;
+}
+
+.tenant-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tenant-calendar-cell {
+  min-height: 120px;
+  border: 1px solid #d0dbe9;
+  border-radius: 10px;
+  background: #f5f9ff;
+  padding: 8px;
+}
+
+.tenant-calendar-cell.is-empty {
+  background: #eef3fb;
+}
+
+.tenant-calendar-day {
+  font-size: 12px;
+  font-weight: 700;
+  color: #233447;
+  margin-bottom: 6px;
+}
+
+.tenant-calendar-entries {
+  display: grid;
+  gap: 6px;
+}
+
+.tenant-calendar-entries .calendar-entry {
+  border: 1px solid #d0dbe9;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+}
+
+.tenant-calendar-entries .calendar-entry-name {
+  font-size: 12px;
+  color: #1d2c40;
+  font-weight: 600;
+}
+
+.tenant-calendar-entries .calendar-empty-note {
+  margin: 0;
+  font-size: 12px;
+  color: #5c6f87;
+}
+
 .tenant-simple-table {
   width: 100%;
   border-collapse: collapse;
@@ -1147,5 +1264,14 @@
 
   .tenant-maintenance-history-table tbody tr td:nth-child(2) {
     max-width: 210px;
+  }
+
+  .tenant-calendar-head,
+  .tenant-calendar-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tenant-calendar-cell {
+    min-height: 108px;
   }
 }

@@ -6,21 +6,16 @@ import { useAuth } from '../../context/AuthContext';
 import { db, storage } from '../../lib/firebase';
 import { verifyPaymentReference } from '../../lib/paymentVerification';
 import { CalendarIcon, CardIcon, UploadIcon } from '../common/LineIcons';
+import {
+  buildCalendarMatrix,
+  buildMonthYearOptions,
+  formatDateYmd,
+  getMonthYearFromRecord,
+  parseDateValue,
+  toDisplayPaymentStatus,
+} from '../../lib/paymentCalendar';
 
 const formatPeso = (value) => `P${Number(value || 0).toLocaleString('en-PH')}`;
-
-const parseDate = (value) => {
-  if (!value) return null;
-  if (typeof value?.toDate === 'function') return value.toDate();
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const formatDate = (value) => {
-  const parsed = parseDate(value);
-  if (!parsed) return '-';
-  return parsed.toISOString().slice(0, 10);
-};
 
 function TenantDues() {
   const { user } = useAuth();
@@ -36,6 +31,9 @@ function TenantDues() {
   const [isDuesLoading, setIsDuesLoading] = useState(true);
   const [tenantProfileImageUrl, setTenantProfileImageUrl] = useState('');
   const [tenantRoomNo, setTenantRoomNo] = useState('');
+  const [tenantName, setTenantName] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
   const paymongoCheckoutUrl = import.meta.env.VITE_PAYMONGO_CHECKOUT_URL;
   const gcashQrImageUrl = import.meta.env.VITE_GCASH_QR_IMAGE_URL;
   const isStorageUploadEnabled = import.meta.env.VITE_ENABLE_STORAGE_UPLOAD === 'true';
@@ -47,17 +45,16 @@ function TenantDues() {
   ];
 
   const dueRows = useMemo(() => {
-    const now = Date.now();
-
     return dues
       .map((due) => {
-        const dueDate = parseDate(due.dueDate);
-        const normalizedStatus = String(due.status || 'Pending').toLowerCase();
-        const status = normalizedStatus === 'paid'
-          ? 'Paid'
-          : dueDate && dueDate.getTime() < now
-            ? 'Overdue'
-            : 'Pending';
+        const dueDate = parseDateValue(due.dueDate);
+        const status = toDisplayPaymentStatus(due.status, dueDate);
+        const monthYear = getMonthYearFromRecord({
+          billingMonth: due.billingMonth,
+          dueDate,
+        });
+
+        if (!monthYear) return null;
 
         return {
           id: due.id,
@@ -67,10 +64,13 @@ function TenantDues() {
           amountValue: Number(due.amount || 0),
           amount: formatPeso(due.amount || 0),
           dueDateRaw: dueDate,
-          dueDate: formatDate(due.dueDate),
+          dueDate: formatDateYmd(dueDate),
           status,
+          year: monthYear.year,
+          month: monthYear.month,
         };
       })
+      .filter(Boolean)
       .sort((a, b) => {
         const left = a.dueDateRaw ? a.dueDateRaw.getTime() : Number.MAX_SAFE_INTEGER;
         const right = b.dueDateRaw ? b.dueDateRaw.getTime() : Number.MAX_SAFE_INTEGER;
@@ -79,7 +79,7 @@ function TenantDues() {
   }, [dues]);
 
   const currentDue = useMemo(
-    () => dueRows.find((due) => due.status === 'Pending' || due.status === 'Overdue'),
+    () => dueRows.find((due) => due.status === 'Not Paid' || due.status === 'Overdue'),
     [dueRows]
   );
 
@@ -94,6 +94,102 @@ function TenantDues() {
       paymentStatus: currentDue?.status || 'Paid',
     };
   }, [dueRows, currentDue]);
+
+  const monthYearOptions = useMemo(() => buildMonthYearOptions(dueRows), [dueRows]);
+
+  const yearOptions = useMemo(() => {
+    const years = new Set(monthYearOptions.map((item) => item.year));
+    return Array.from(years).sort((a, b) => b - a);
+  }, [monthYearOptions]);
+
+  const monthOptions = useMemo(() => {
+    if (!selectedYear) return [];
+    return monthYearOptions
+      .filter((item) => String(item.year) === selectedYear)
+      .sort((a, b) => a.month - b.month);
+  }, [monthYearOptions, selectedYear]);
+
+  useEffect(() => {
+    if (!monthYearOptions.length) {
+      setSelectedYear('');
+      setSelectedMonth('');
+      return;
+    }
+
+    const hasValidSelection = monthYearOptions.some(
+      (item) => String(item.year) === selectedYear && String(item.month) === selectedMonth
+    );
+
+    if (!hasValidSelection) {
+      setSelectedYear(String(monthYearOptions[0].year));
+      setSelectedMonth(String(monthYearOptions[0].month));
+    }
+  }, [monthYearOptions, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    if (!selectedYear || !monthOptions.length) return;
+    const hasMonth = monthOptions.some((item) => String(item.month) === selectedMonth);
+    if (!hasMonth) {
+      setSelectedMonth(String(monthOptions[0].month));
+    }
+  }, [monthOptions, selectedMonth, selectedYear]);
+
+  const monthlyDueRows = useMemo(() => {
+    return dueRows.filter((row) => String(row.year) === selectedYear && String(row.month) === selectedMonth);
+  }, [dueRows, selectedMonth, selectedYear]);
+
+  const selectedYearNumber = Number(selectedYear);
+  const selectedMonthNumber = Number(selectedMonth);
+
+  const calendarWeeks = useMemo(() => {
+    if (!Number.isInteger(selectedYearNumber) || !Number.isInteger(selectedMonthNumber)) {
+      return [];
+    }
+    return buildCalendarMatrix(selectedYearNumber, selectedMonthNumber);
+  }, [selectedMonthNumber, selectedYearNumber]);
+
+  const calendarEntriesByDay = useMemo(() => {
+    const map = new Map();
+
+    monthlyDueRows.forEach((row) => {
+      if (!row.dueDateRaw) return;
+      if (row.dueDateRaw.getFullYear() !== selectedYearNumber || row.dueDateRaw.getMonth() !== selectedMonthNumber) {
+        return;
+      }
+
+      const day = row.dueDateRaw.getDate();
+      if (!map.has(day)) {
+        map.set(day, []);
+      }
+
+      map.get(day).push({
+        id: row.id,
+        tenantName: tenantName || user?.email || 'Tenant',
+        status: row.status,
+      });
+    });
+
+    return map;
+  }, [monthlyDueRows, selectedMonthNumber, selectedYearNumber, tenantName, user?.email]);
+
+  const monthlyCounts = useMemo(() => {
+    return monthlyDueRows.reduce(
+      (acc, row) => {
+        if (row.status === 'Paid') acc.paid += 1;
+        else if (row.status === 'Overdue') acc.overdue += 1;
+        else acc.notPaid += 1;
+        return acc;
+      },
+      { paid: 0, notPaid: 0, overdue: 0 }
+    );
+  }, [monthlyDueRows]);
+
+  const selectedLabel = useMemo(() => {
+    const option = monthYearOptions.find(
+      (item) => String(item.year) === selectedYear && String(item.month) === selectedMonth
+    );
+    return option?.label || 'No month selected';
+  }, [monthYearOptions, selectedMonth, selectedYear]);
 
   useEffect(() => {
     if (!db || !user?.uid) {
@@ -134,7 +230,7 @@ function TenantDues() {
     );
 
     return unsubscribe;
-  }, [user?.uid]);
+  }, [user?.email, user?.uid]);
 
   useEffect(() => {
     if (!db || !user?.uid) {
@@ -162,7 +258,7 @@ function TenantDues() {
     );
 
     return unsubscribe;
-  }, [user?.uid]);
+  }, [user?.email, user?.uid]);
 
   useEffect(() => {
     const loadTenantProfilePhoto = async () => {
@@ -177,15 +273,17 @@ function TenantDues() {
         if (userDoc.exists()) {
           setTenantProfileImageUrl(userDoc.data()?.profileImageDataUrl || userDoc.data()?.profileImageUrl || '');
           setTenantRoomNo(userDoc.data()?.roomNo || '');
+          setTenantName(userDoc.data()?.fullName || userDoc.data()?.email || user.email || 'Tenant');
         }
       } catch {
         setTenantProfileImageUrl('');
         setTenantRoomNo('');
+        setTenantName(user.email || 'Tenant');
       }
     };
 
     loadTenantProfilePhoto();
-  }, [user?.uid]);
+  }, [user?.email, user?.uid]);
 
   const handlePayNow = () => {
     if (!currentDue) {
@@ -469,11 +567,46 @@ function TenantDues() {
 
       <section className="tenant-table-wrap">
         <div className="tenant-panel-header">
-          <h2>Monthly Dues Ledger</h2>
-          <p>Review your current billing schedule and due states.</p>
+          <h2>Monthly Dues Ledger - {selectedLabel}</h2>
+          <p>Review your selected month and year dues status.</p>
         </div>
+
+        <div className="tenant-filter-bar">
+          <label htmlFor="tenant-year-select">Year</label>
+          <select
+            id="tenant-year-select"
+            value={selectedYear}
+            onChange={(event) => setSelectedYear(event.target.value)}
+          >
+            {yearOptions.map((year) => (
+              <option key={year} value={String(year)}>{year}</option>
+            ))}
+          </select>
+
+          <label htmlFor="tenant-month-select">Month</label>
+          <select
+            id="tenant-month-select"
+            value={selectedMonth}
+            onChange={(event) => setSelectedMonth(event.target.value)}
+          >
+            {monthOptions.map((monthOption) => (
+              <option key={monthOption.key} value={String(monthOption.month)}>
+                {monthOption.monthLabel}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="tenant-month-summary">
+          <span className="summary-pill paid">Paid: {monthlyCounts.paid}</span>
+          <span className="summary-pill not-paid">Not Paid: {monthlyCounts.notPaid}</span>
+          <span className="summary-pill overdue">Overdue: {monthlyCounts.overdue}</span>
+        </div>
+
         {isDuesLoading ? (
           <p>Loading dues...</p>
+        ) : monthlyDueRows.length === 0 ? (
+          <p>No dues found for this month and year.</p>
         ) : (
           <table className="tenant-simple-table">
             <thead>
@@ -482,18 +615,73 @@ function TenantDues() {
               </tr>
             </thead>
             <tbody>
-              {dueRows.map((row) => (
+              {monthlyDueRows.map((row) => (
                 <tr key={row.id}>
                   <td>{row.billingMonth}</td>
                   <td>{row.monthlyRate}</td>
                   <td>{row.electricBill}</td>
                   <td>{row.amount}</td>
                   <td>{row.dueDate}</td>
-                  <td><StatusBadge status={row.status} type={row.status.toLowerCase()} /></td>
+                  <td><StatusBadge status={row.status} type={row.status.toLowerCase().replace(' ', '-')} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
+        )}
+      </section>
+
+      <section className="tenant-table-wrap">
+        <div className="tenant-panel-header">
+          <h2>Calendar View - {selectedLabel}</h2>
+          <p>Per-day due list with your payment status.</p>
+        </div>
+
+        {calendarWeeks.length === 0 ? (
+          <p>No calendar data available.</p>
+        ) : (
+          <>
+            <div className="tenant-calendar-head">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName) => (
+                <span key={dayName}>{dayName}</span>
+              ))}
+            </div>
+
+            <div className="tenant-calendar-grid">
+              {calendarWeeks.flatMap((week, weekIndex) =>
+                week.map((day, dayIndex) => {
+                  const dayEntries = day ? (calendarEntriesByDay.get(day) || []) : [];
+
+                  return (
+                    <div
+                      key={`tenant-calendar-cell-${weekIndex}-${dayIndex}`}
+                      className={day ? 'tenant-calendar-cell' : 'tenant-calendar-cell is-empty'}
+                    >
+                      {day ? (
+                        <>
+                          <div className="tenant-calendar-day">{day}</div>
+                          <div className="tenant-calendar-entries">
+                            {dayEntries.length === 0 ? (
+                              <p className="calendar-empty-note">No dues</p>
+                            ) : (
+                              dayEntries.map((entry) => (
+                                <div key={`tenant-entry-${entry.id}`} className="calendar-entry">
+                                  <span className="calendar-entry-name">{entry.tenantName}</span>
+                                  <StatusBadge
+                                    status={entry.status}
+                                    type={entry.status.toLowerCase().replace(' ', '-')}
+                                  />
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </>
         )}
       </section>
 
