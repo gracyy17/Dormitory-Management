@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { collection, doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
 import DataTable from '../common/DataTable';
+import LoadingState from '../common/LoadingState';
 import StatusBadge from '../common/StatusBadge';
 import { db } from '../../lib/firebase';
 
@@ -161,7 +162,13 @@ function MaintenanceManagement() {
           <p className="page-subtitle">Track tenant requests and room maintenance status.</p>
         </div>
 
-        {isLoading && <p>Loading maintenance data...</p>}
+        {isLoading && (
+          <LoadingState
+            title="Loading Maintenance"
+            message="Gathering requests and room maintenance statuses..."
+            skeletonRows={4}
+          />
+        )}
         {error && <p className="admin-feedback is-error">{error}</p>}
 
         <section className="dashboard-widget">

@@ -62,6 +62,18 @@ input, select, textarea {
   box-shadow: 0 8px 16px rgba(72, 112, 158, 0.12);
 }
 
+.app-auth-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 15% 15%, #edf5ff 0%, #e6eef9 44%, #dfe7f3 100%);
+}
+
+.app-auth-loading .app-loading-state {
+  width: min(560px, 100%);
+}
+
 .app-loading-state.compact {
   padding: 10px 12px;
 }

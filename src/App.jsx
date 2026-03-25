@@ -5,13 +5,22 @@ import AdminRoutes from './pages/AdminRoutes';
 import AdminLogin from './components/admin/AdminLogin';
 import TenantRoutes from './pages/TenantRoutes';
 import TenantLogin from './components/public/TenantLogin';
+import LoadingState from './components/common/LoadingState';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function RequireRole({ role: expectedRole, children, redirectTo }) {
   const { user, role, loading } = useAuth();
 
   if (loading) {
-    return <div className="App" style={{ padding: '2rem' }}>Loading...</div>;
+    return (
+      <div className="app-auth-loading">
+        <LoadingState
+          title="Loading Application"
+          message="Checking your account and access permissions..."
+          skeletonRows={4}
+        />
+      </div>
+    );
   }
 
   if (!user) {
