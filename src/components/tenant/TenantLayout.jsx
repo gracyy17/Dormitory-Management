@@ -7,8 +7,43 @@ import { CardIcon, PowerIcon, ShieldIcon, UserIcon, WrenchIcon } from '../common
 import { db } from '../../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
-function RouteLoadingGate({ children }) {
+const getTenantLoadingConfig = (pathname) => {
+  const path = String(pathname || '').toLowerCase();
+
+  if (path.includes('/tenant/dues')) {
+    return {
+      title: 'Loading Dues',
+      message: 'Preparing monthly dues, calendar, and payment history...',
+      skeletonRows: 6,
+    };
+  }
+
+  if (path.includes('/tenant/maintenance')) {
+    return {
+      title: 'Loading Maintenance',
+      message: 'Fetching request forms and maintenance history...',
+      skeletonRows: 5,
+    };
+  }
+
+  if (path.includes('/tenant/profile')) {
+    return {
+      title: 'Loading Profile',
+      message: 'Preparing your account, room assignment, and personal details...',
+      skeletonRows: 5,
+    };
+  }
+
+  return {
+    title: 'Loading Tenant Page',
+    message: 'Preparing your portal details...',
+    skeletonRows: 5,
+  };
+};
+
+function RouteLoadingGate({ children, pathname }) {
   const [isReady, setIsReady] = useState(false);
+  const loadingConfig = getTenantLoadingConfig(pathname);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsReady(true), 300);
@@ -18,9 +53,9 @@ function RouteLoadingGate({ children }) {
   if (!isReady) {
     return (
       <LoadingState
-        title="Loading Tenant Page"
-        message="Preparing your portal details..."
-        skeletonRows={5}
+        title={loadingConfig.title}
+        message={loadingConfig.message}
+        skeletonRows={loadingConfig.skeletonRows}
       />
     );
   }
@@ -140,7 +175,7 @@ function TenantLayout({ children }) {
       </aside>
 
       <main className="tenant-content">
-        <RouteLoadingGate key={location.pathname}>{children}</RouteLoadingGate>
+        <RouteLoadingGate key={location.pathname} pathname={location.pathname}>{children}</RouteLoadingGate>
       </main>
     </div>
   );
