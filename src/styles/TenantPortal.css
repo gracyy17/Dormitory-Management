@@ -1299,6 +1299,18 @@
   color: #a9bfd9;
 }
 
+.tenant-layout.is-dark .tenant-profile-card h3,
+.tenant-layout.is-dark .tenant-password-form h3 {
+  color: #e8f1ff;
+}
+
+.tenant-layout.is-dark .tenant-profile-showcase-grid .tenant-form-group label,
+.tenant-layout.is-dark .tenant-profile-card label,
+.tenant-layout.is-dark .tenant-photo-hint,
+.tenant-layout.is-dark .tenant-file-name {
+  color: #adc3dc;
+}
+
 .tenant-layout.is-dark .tenant-page-kicker {
   background: #172231;
   border-color: #2a3d55;
@@ -1388,6 +1400,20 @@
   border-color: #38516d;
   background: #0e1824;
   color: #dbe8f8;
+}
+
+.tenant-layout.is-dark .tenant-profile-showcase-grid .tenant-form-group input,
+.tenant-layout.is-dark .tenant-profile-showcase-grid .tenant-form-group textarea {
+  border-color: #38516d;
+  background: #0e1824;
+  color: #dbe8f8;
+}
+
+.tenant-layout.is-dark .tenant-profile-showcase-grid .tenant-form-group input::placeholder,
+.tenant-layout.is-dark .tenant-profile-showcase-grid .tenant-form-group textarea::placeholder,
+.tenant-layout.is-dark .tenant-form-group input::placeholder,
+.tenant-layout.is-dark .tenant-maintenance-form textarea::placeholder {
+  color: #89a4c2;
 }
 
 .tenant-layout.is-dark .tenant-upload-btn,
