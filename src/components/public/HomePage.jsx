@@ -62,9 +62,7 @@ function HomePage() {
               <span><WifiIcon className="ui-icon" size={14} /> Connected Spaces</span>
               <span><UsersIcon className="ui-icon" size={14} /> Admin Dashboard</span>
             </div>
-            <div className="hero-cta">
-              <Link className="btn btn-primary" to="/admin/login">Go to Admin Portal</Link>
-            </div>
+            {/* Admin portal button removed from hero section per request */}
           </div>
           <aside className="hero-panel glass-panel reveal-up delay-1">
             <h3>At A Glance</h3>
