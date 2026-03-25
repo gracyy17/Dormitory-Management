@@ -14,6 +14,8 @@ import {
 } from '../common/LineIcons';
 
 const ISSUE_LIMIT = 500;
+const ISSUE_PHOTO_MAX_BYTES = 500 * 1024;
+const ISSUE_PHOTO_MAX_DATA_URL_LENGTH = 850000;
 
 const MAINTENANCE_CATEGORIES = [
   { value: 'Plumbing', Icon: FaucetIcon },
@@ -24,6 +26,40 @@ const MAINTENANCE_CATEGORIES = [
 ];
 
 const PRIORITY_OPTIONS = ['Low', 'Normal', 'High', 'Urgent'];
+
+const optimizeImageToDataUrl = (file, maxDimension = 900, quality = 0.82) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    const image = new Image();
+
+    image.onload = () => {
+      const largestSide = Math.max(image.width, image.height) || 1;
+      const scale = Math.min(1, maxDimension / largestSide);
+      const targetWidth = Math.max(1, Math.round(image.width * scale));
+      const targetHeight = Math.max(1, Math.round(image.height * scale));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      const context = canvas.getContext('2d');
+      if (!context) {
+        reject(new Error('Image processing is unavailable right now.'));
+        return;
+      }
+
+      context.drawImage(image, 0, 0, targetWidth, targetHeight);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+
+    image.onerror = () => reject(new Error('Image read failed.'));
+    image.src = String(reader.result || '');
+  };
+
+  reader.onerror = () => reject(new Error('Image read failed.'));
+  reader.readAsDataURL(file);
+});
 
 function TenantMaintenance() {
   const { user } = useAuth();
@@ -84,6 +120,30 @@ function TenantMaintenance() {
       return;
     }
 
+    let issuePhotoDataUrl = null;
+    if (issuePhoto) {
+      if (!String(issuePhoto.type || '').startsWith('image/')) {
+        setSubmitStatus('Only image files are allowed for maintenance photos.');
+        return;
+      }
+
+      if (Number(issuePhoto.size || 0) > ISSUE_PHOTO_MAX_BYTES) {
+        setSubmitStatus('Photo is too large. Please upload an image under 500KB.');
+        return;
+      }
+
+      try {
+        issuePhotoDataUrl = await optimizeImageToDataUrl(issuePhoto);
+        if (!issuePhotoDataUrl || issuePhotoDataUrl.length > ISSUE_PHOTO_MAX_DATA_URL_LENGTH) {
+          setSubmitStatus('Photo could not be optimized safely. Try a smaller image.');
+          return;
+        }
+      } catch {
+        setSubmitStatus('Unable to process maintenance photo right now.');
+        return;
+      }
+    }
+
     try {
       await addDoc(collection(db, 'maintenanceRequests'), {
         tenantUid: user.uid,
@@ -91,6 +151,7 @@ function TenantMaintenance() {
         category,
         issue: trimmedIssue,
         priority,
+        photoDataUrl: issuePhotoDataUrl,
         photoName: issuePhoto?.name || null,
         status: 'Pending',
         createdAt: serverTimestamp(),

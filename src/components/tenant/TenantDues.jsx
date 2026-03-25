@@ -58,8 +58,17 @@ function TenantDues() {
     return `https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=${encodeURIComponent(gcashQrPayload)}`;
   }, [gcashQrImageUrl, gcashQrPayload]);
   const isStorageUploadEnabled = import.meta.env.VITE_ENABLE_STORAGE_UPLOAD === 'true';
-  const cloudinaryCloudName = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
-  const cloudinaryUploadPreset = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
+  const cloudinaryCloudName = String(
+    import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+    || import.meta.env.VITE_CLOUDINARY_CLOUD
+    || ''
+  ).trim();
+  const cloudinaryUploadPreset = String(
+    import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+    || import.meta.env.VITE_CLOUDINARY_UNSIGNED_UPLOAD_PRESET
+    || import.meta.env.VITE_CLOUDINARY_PRESET
+    || ''
+  ).trim();
   const isCloudinaryUploadEnabled = Boolean(cloudinaryCloudName && cloudinaryUploadPreset);
   const isReceiptFileUploadEnabled = isCloudinaryUploadEnabled || isStorageUploadEnabled;
 
@@ -343,6 +352,10 @@ function TenantDues() {
       let uploadNote = '';
 
       const uploadReceiptToCloudinary = async (file) => {
+        if (!cloudinaryCloudName || !cloudinaryUploadPreset) {
+          throw new Error('Cloudinary upload preset is not configured.');
+        }
+
         const formData = new FormData();
         formData.append('file', file);
         formData.append('upload_preset', cloudinaryUploadPreset);
@@ -372,7 +385,10 @@ function TenantDues() {
             receiptPath = uploadedReceipt.path;
           } catch (error) {
             const message = typeof error?.message === 'string' ? error.message : '';
-            uploadNote = message ? `Cloudinary upload failed: ${message}` : 'Cloudinary upload failed. Using fallback upload options.';
+            const isPresetError = message.toLowerCase().includes('upload preset');
+            uploadNote = isPresetError
+              ? 'Cloudinary preset is missing/invalid. Using fallback upload options.'
+              : (message ? `Cloudinary upload failed: ${message}` : 'Cloudinary upload failed. Using fallback upload options.');
           }
         }
 

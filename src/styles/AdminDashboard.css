@@ -1089,6 +1089,11 @@ body {
   color: #c6ddff;
 }
 
+.admin-layout.dark-mode .maintenance-photo-link {
+  border-color: #30445f;
+  background: #112035;
+}
+
 .admin-layout.dark-mode .form-group input,
 .admin-layout.dark-mode .form-group select,
 .admin-layout.dark-mode .filter-group select,
@@ -1966,6 +1971,23 @@ body {
   padding: 40px;
   color: var(--gray-500);
   font-size: 14px;
+}
+
+.maintenance-photo-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid #d7e0ed;
+  overflow: hidden;
+  background: #f8fbff;
+}
+
+.maintenance-photo-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  display: block;
 }
 
 /* ==================== STATUS BADGES ==================== */

@@ -72,6 +72,8 @@ function MaintenanceManagement() {
         tenantEmail: request.tenantEmail || '-',
         roomNo: request.roomNo || '-',
         issue: request.issue || request.description || '-',
+        photoDataUrl: request.photoDataUrl || '',
+        photoName: request.photoName || 'Issue photo',
         priority: request.priority || 'Normal',
         status: request.status || 'Pending',
         createdAt: formatDate(request.createdAt),
@@ -109,6 +111,19 @@ function MaintenanceManagement() {
     { key: 'tenantEmail', label: 'Tenant' },
     { key: 'roomNo', label: 'Room' },
     { key: 'issue', label: 'Issue' },
+    {
+      key: 'photoDataUrl',
+      label: 'Photo',
+      render: (value, row) => {
+        if (!value) return <span>-</span>;
+
+        return (
+          <a href={value} target="_blank" rel="noreferrer" className="maintenance-photo-link" title="Open issue photo">
+            <img src={value} alt={row.photoName || 'Issue photo'} className="maintenance-photo-thumb" />
+          </a>
+        );
+      },
+    },
     { key: 'priority', label: 'Priority' },
     { key: 'createdAt', label: 'Date Filed' },
     {
