@@ -6,6 +6,11 @@
 }
 
 .tenant-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 232px;
+  height: 100vh;
   border-right: 1px solid #d4dbe6;
   background: linear-gradient(180deg, #ecf1f7 0%, #e6edf6 100%);
   padding: 14px 14px 12px;
@@ -13,6 +18,8 @@
   flex-direction: column;
   gap: 12px;
   box-shadow: inset -1px 0 0 #f7f9fd;
+  overflow: hidden;
+  z-index: 100;
 }
 
 .tenant-sidebar-brand {
@@ -169,6 +176,7 @@
 }
 
 .tenant-content {
+  margin-left: 232px;
   padding: 22px;
 }
 
