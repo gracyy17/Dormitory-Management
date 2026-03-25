@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import '../../styles/PublicWebsite.css';
+import '../../styles/AdminLogin.css';
 import { useAuth } from '../../context/AuthContext';
+import { BrandIcon, LockIcon, MailIcon } from '../common/LineIcons';
 
 function TenantLogin() {
   const navigate = useNavigate();
@@ -32,45 +33,70 @@ function TenantLogin() {
   }
 
   return (
-    <div className="tenant-login-page">
-      <div className="tenant-login-card">
-        <h1>Tenant Portal</h1>
-        <p>Login to view your dues, room details, and maintenance requests.</p>
+    <div className="login-container">
+      <div className="login-background">
+        <div className="background-shape shape-1"></div>
+        <div className="background-shape shape-2"></div>
+        <div className="background-shape shape-3"></div>
+      </div>
 
-        <form className="tenant-login-form" onSubmit={handleSubmit}>
-          <label htmlFor="tenant-email">Email</label>
-          <input
-            id="tenant-email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="tenant@email.com"
-            required
-          />
+      <div className="login-card">
+        <div className="login-header">
+          <div className="login-logo" aria-hidden="true">
+            <BrandIcon className="ui-icon" size={34} />
+          </div>
+          <h1 className="login-title">MZ Dormitory</h1>
+          <p className="login-subtitle">Tenant Portal Access</p>
+        </div>
 
-          <label htmlFor="tenant-password">Password</label>
-          <input
-            id="tenant-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="••••••••"
-            required
-          />
+        <form className="login-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="tenant-email">Email</label>
+            <div className="input-wrapper">
+              <span className="input-icon" aria-hidden="true">
+                <MailIcon className="ui-icon" size={16} />
+              </span>
+              <input
+                id="tenant-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="tenant@mzdormitory.com"
+                required
+              />
+            </div>
+          </div>
 
-          {error && <p className="tenant-login-error">{error}</p>}
+          <div className="form-group">
+            <label htmlFor="tenant-password">Password</label>
+            <div className="input-wrapper">
+              <span className="input-icon" aria-hidden="true">
+                <LockIcon className="ui-icon" size={16} />
+              </span>
+              <input
+                id="tenant-password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+          </div>
 
-          <button type="submit" className="btn btn-primary" disabled={isLoading}>
+          {error && <div className="error-message">{error}</div>}
+
+          <button type="submit" className="login-button" disabled={isLoading}>
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
-        {!isFirebaseConfigured && (
-          <p className="tenant-login-help">Firebase env values are missing. Add `VITE_FIREBASE_*` variables.</p>
-        )}
-
-        <div className="tenant-login-links">
-          <Link to="/">Back to Public Website</Link>
+        <div className="login-footer">
+          <p className="demo-credentials">Tenant login requires a Firebase user with role: <strong>tenant</strong>.</p>
+          {!isFirebaseConfigured && <p className="demo-credentials">Firebase env values are missing. Check your .env file.</p>}
+          <p className="demo-credentials">
+            <Link className="login-nav-link" to="/">Back to Public Website</Link>
+          </p>
         </div>
       </div>
     </div>
