@@ -258,6 +258,32 @@
   margin-top: 22px;
 }
 
+.about-frame {
+  padding: 18px;
+}
+
+.essential-info {
+  border: 1px solid var(--public-border);
+  border-radius: 12px;
+  background: rgba(248, 252, 255, 0.78);
+  padding: 12px 14px;
+}
+
+.essential-info p {
+  margin: 0;
+  color: var(--public-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.essential-info strong {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--public-text);
+  font-size: 1rem;
+}
+
 .section-grid {
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
@@ -439,7 +465,8 @@
 .public-site.dark-mode .pulse-grid article,
 .public-site.dark-mode .feature-chip,
 .public-site.dark-mode .room-offer-card,
-.public-site.dark-mode .amenity-item {
+.public-site.dark-mode .amenity-item,
+.public-site.dark-mode .essential-info {
   background: #18283d;
   border-color: #2f4564;
   color: #d4e3f9;
