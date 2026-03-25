@@ -25,7 +25,7 @@ function UsersManagement() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const deleteAccountEndpoint = useMemo(() => {
+  const deleteAccountEndpoints = useMemo(() => {
     const configured = String(import.meta.env.VITE_DELETE_USER_ACCOUNT_URL || '').trim();
     const projectId = String(import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim();
     const fallback = projectId
@@ -38,10 +38,12 @@ function UsersManagement() {
       && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
 
     if (!configured || (isLocalConfiguredEndpoint && !isRunningLocally)) {
-      return fallback;
+      return fallback ? [fallback] : [];
     }
 
-    return configured;
+    const endpoints = [configured];
+    if (fallback && fallback !== configured) endpoints.push(fallback);
+    return endpoints;
   }, []);
 
   useEffect(() => {
@@ -144,7 +146,7 @@ function UsersManagement() {
     setSuccess('');
 
     try {
-      if (!deleteAccountEndpoint) {
+      if (!deleteAccountEndpoints.length) {
         setError('Delete endpoint is not configured. Deploy functions and set VITE_DELETE_USER_ACCOUNT_URL if needed.');
         return;
       }
@@ -155,18 +157,39 @@ function UsersManagement() {
         return;
       }
 
-      const response = await fetch(deleteAccountEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ targetUid: row.id }),
-      });
+      let response = null;
+      let payload = {};
+      let lastError = null;
 
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Delete request failed.');
+      for (const endpoint of deleteAccountEndpoints) {
+        try {
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ targetUid: row.id }),
+          });
+
+          payload = await response.json().catch(() => ({}));
+          if (response.ok) break;
+
+          if (response.status >= 400 && response.status < 500) {
+            throw new Error(payload?.message || `Delete request failed (${response.status}).`);
+          }
+
+          lastError = new Error(payload?.message || `Delete request failed (${response.status}).`);
+        } catch (requestError) {
+          lastError = requestError;
+        }
+      }
+
+      if (!response || !response.ok) {
+        if (String(lastError?.message || '').toLowerCase().includes('failed to fetch')) {
+          throw new Error('Delete service unreachable. Deploy Cloud Functions and verify endpoint URL/network.');
+        }
+        throw lastError || new Error('Delete request failed.');
       }
 
       setSuccess(`Permanently deleted account ${row.email}.`);
