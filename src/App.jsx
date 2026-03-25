@@ -10,15 +10,17 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 
 function RequireRole({ role: expectedRole, children, redirectTo }) {
   const { user, role, loading } = useAuth();
+  const isDarkModeEnabled =
+    typeof window !== 'undefined'
+    && (
+      window.localStorage.getItem('admin_dark_mode') === 'true'
+      || window.localStorage.getItem('tenantPortalTheme') === 'dark'
+    );
 
   if (loading) {
     return (
-      <div className="app-auth-loading">
-        <LoadingState
-          title="Loading Application"
-          message="Checking your account and access permissions..."
-          skeletonRows={4}
-        />
+      <div className={`app-auth-loading${isDarkModeEnabled ? ' is-dark' : ''}`}>
+        <LoadingState simple />
       </div>
     );
   }

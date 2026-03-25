@@ -5,8 +5,22 @@ function LoadingState({
   message = 'Please wait while we fetch your data.',
   compact = false,
   skeletonRows = 3,
+  simple = false,
 }) {
   const safeRows = Math.max(0, Number(skeletonRows) || 0);
+
+  if (simple) {
+    return (
+      <div
+        className="app-loading-simple"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <div className="app-loading-spinner" aria-hidden="true" />
+      </div>
+    );
+  }
 
   return (
     <div
