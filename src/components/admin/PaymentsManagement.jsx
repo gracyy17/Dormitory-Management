@@ -593,11 +593,15 @@ function PaymentsManagement() {
     {
       key: 'receiptUrl',
       label: 'Receipt',
-      render: (url) => (
+      render: (url, row) => (
         url ? (
-          <a href={url} target="_blank" rel="noreferrer">
+          <button
+            className="btn-text"
+            onClick={() => openReceiptPreview(url, row)}
+            style={{ cursor: 'pointer', color: '#0066cc', textDecoration: 'underline', border: 'none', background: 'none', padding: 0 }}
+          >
             View Receipt
-          </a>
+          </button>
         ) : (
           <span>-</span>
         )
@@ -842,6 +846,37 @@ function PaymentsManagement() {
           </div>
           {!isLoading && <DataTable columns={approvedHistoryColumns} data={approvedHistoryItems} />}
         </section>
+
+        <Modal
+          isOpen={receiptPreview.isOpen}
+          title={`Receipt - ${receiptPreview.tenantEmail}`}
+          onClose={closeReceiptPreview}
+          size="medium"
+        >
+          <div style={{ padding: '1rem' }}>
+            {receiptPreview.billingMonth && (
+              <p style={{ marginBottom: '1rem' }}>
+                <strong>Billing Month:</strong> {receiptPreview.billingMonth}
+              </p>
+            )}
+            {isImageReceiptUrl(receiptPreview.url) ? (
+              <img
+                src={receiptPreview.url}
+                alt="Receipt"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '500px',
+                  borderRadius: '4px',
+                  border: '1px solid #e0e0e0',
+                }}
+              />
+            ) : (
+              <a href={receiptPreview.url} target="_blank" rel="noreferrer">
+                Open Receipt (external link)
+              </a>
+            )}
+          </div>
+        </Modal>
       </div>
     </AdminLayout>
   );
