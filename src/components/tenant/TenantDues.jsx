@@ -38,6 +38,9 @@ function TenantDues() {
   const paymongoCheckoutUrl = import.meta.env.VITE_PAYMONGO_CHECKOUT_URL;
   const gcashQrImageUrl = import.meta.env.VITE_GCASH_QR_IMAGE_URL;
   const isStorageUploadEnabled = import.meta.env.VITE_ENABLE_STORAGE_UPLOAD === 'true';
+  const cloudinaryCloudName = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
+  const cloudinaryUploadPreset = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
+  const isCloudinaryUploadEnabled = Boolean(cloudinaryCloudName && cloudinaryUploadPreset);
 
   const paymentMethods = [
     { value: 'Maya', details: 'PayMongo e-wallet checkout' },
@@ -331,31 +334,66 @@ function TenantDues() {
       let receiptPath = '';
       let uploadNote = '';
 
-      if (receiptFile) {
-        if (!isStorageUploadEnabled) {
-          setPaymentStatus('Receipt image upload is disabled for this deployment. Please provide a receipt link instead.');
-          setIsSubmittingReceipt(false);
-          return;
+      const uploadReceiptToCloudinary = async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', cloudinaryUploadPreset);
+        formData.append('folder', 'dormitory/payment-receipts');
+
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error?.message || 'Cloudinary upload failed.');
         }
 
-        if (storage) {
-          try {
-            const timestamp = Date.now();
-            const safeFileName = receiptFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            receiptPath = `payment-receipts/${user.uid}/${timestamp}-${safeFileName}`;
-            const receiptRef = ref(storage, receiptPath);
+        return {
+          url: payload?.secure_url || payload?.url || '',
+          path: payload?.public_id || '',
+        };
+      };
 
-            await uploadBytes(receiptRef, receiptFile);
-            receiptUrl = await getDownloadURL(receiptRef);
+      if (receiptFile) {
+        if (isCloudinaryUploadEnabled) {
+          try {
+            const uploadedReceipt = await uploadReceiptToCloudinary(receiptFile);
+            receiptUrl = uploadedReceipt.url;
+            receiptPath = uploadedReceipt.path;
           } catch (error) {
-            const code = typeof error?.code === 'string' ? error.code : '';
-            const isLikelyBucketConfigIssue = code.includes('storage/unknown') || code.includes('storage/unauthorized');
-            uploadNote = isLikelyBucketConfigIssue
-              ? 'Receipt upload failed. Firebase Storage bucket/config likely needs an update.'
-              : 'Receipt upload failed. Using manual review evidence if provided.';
+            const message = typeof error?.message === 'string' ? error.message : '';
+            uploadNote = message ? `Cloudinary upload failed: ${message}` : 'Cloudinary upload failed. Using fallback upload options.';
           }
-        } else {
-          uploadNote = 'Storage upload unavailable on current Firebase plan.';
+        }
+
+        if (!receiptUrl) {
+          if (!isStorageUploadEnabled) {
+            setPaymentStatus('Receipt image upload is disabled for this deployment. Please provide a receipt link instead.');
+            setIsSubmittingReceipt(false);
+            return;
+          }
+
+          if (storage) {
+            try {
+              const timestamp = Date.now();
+              const safeFileName = receiptFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+              receiptPath = `payment-receipts/${user.uid}/${timestamp}-${safeFileName}`;
+              const receiptRef = ref(storage, receiptPath);
+
+              await uploadBytes(receiptRef, receiptFile);
+              receiptUrl = await getDownloadURL(receiptRef);
+            } catch (error) {
+              const code = typeof error?.code === 'string' ? error.code : '';
+              const isLikelyBucketConfigIssue = code.includes('storage/unknown') || code.includes('storage/unauthorized');
+              uploadNote = isLikelyBucketConfigIssue
+                ? 'Receipt upload failed. Firebase Storage bucket/config likely needs an update.'
+                : 'Receipt upload failed. Using manual review evidence if provided.';
+            }
+          } else {
+            uploadNote = 'Storage upload unavailable on current Firebase plan.';
+          }
         }
       }
 
