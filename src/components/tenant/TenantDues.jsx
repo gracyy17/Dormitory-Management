@@ -356,19 +356,22 @@ function TenantDues() {
           throw new Error('Cloudinary upload preset is not configured.');
         }
 
+        const resolvedPreset = String(cloudinaryUploadPreset).trim();
+        const uploadEndpoint = `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload?upload_preset=${encodeURIComponent(resolvedPreset)}`;
         const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', cloudinaryUploadPreset);
+        formData.append('file', file, file?.name || 'receipt.jpg');
+        formData.append('upload_preset', resolvedPreset);
         formData.append('folder', 'dormitory/payment-receipts');
 
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`, {
+        const response = await fetch(uploadEndpoint, {
           method: 'POST',
           body: formData,
         });
 
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload?.error?.message || 'Cloudinary upload failed.');
+          const baseMessage = payload?.error?.message || 'Cloudinary upload failed.';
+          throw new Error(`${baseMessage} (cloud=${cloudinaryCloudName}, preset=${resolvedPreset})`);
         }
 
         return {
