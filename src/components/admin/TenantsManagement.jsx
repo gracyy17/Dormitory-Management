@@ -10,6 +10,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
+import { Link } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import DataTable from '../common/DataTable';
 import Modal from '../common/Modal';
@@ -1093,6 +1094,10 @@ function TenantsManagement({ section = 'all' }) {
 
         {section !== 'create' && (
         <div className="tenants-overview-shell">
+        <div className="modal-actions" style={{ marginBottom: 12, justifyContent: 'flex-end' }}>
+          <Link to="/admin/tenants/create" className="btn-primary">Create Tenant Account</Link>
+        </div>
+
         <section className="users-stat-grid tenants-overview-stats">
           <article className="dashboard-surface users-stat-card">
             <span className="users-stat-icon"><UsersIcon className="ui-icon" size={18} /></span>
