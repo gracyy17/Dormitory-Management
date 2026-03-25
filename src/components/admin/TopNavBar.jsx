@@ -106,8 +106,11 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
   }, [user?.uid]);
 
   const notificationItems = useMemo(() => {
+<<<<<<< Updated upstream
     const now = Date.now();
 
+=======
+>>>>>>> Stashed changes
     const paymentItems = payments
       .filter((payment) => String(payment.status || '').toLowerCase() === 'pending')
       .map((payment) => ({
@@ -123,11 +126,15 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
     const dueItems = dues
       .filter((due) => {
         const status = String(due.status || '').toLowerCase();
+<<<<<<< Updated upstream
         if (status === 'paid') return false;
 
         const dueDate = parseDate(due.dueDate);
         if (!dueDate) return status === 'pending' || status === 'overdue';
         return dueDate.getTime() <= now || status === 'overdue';
+=======
+        return status === 'pending' || status === 'overdue';
+>>>>>>> Stashed changes
       })
       .map((due) => ({
         id: `due-${due.id}`,
