@@ -45,7 +45,7 @@ function HomePage() {
           <button className="public-theme-toggle" onClick={toggleTheme} aria-label="Toggle public theme">
             {darkMode ? <SunIcon className="ui-icon" size={15} /> : <MoonIcon className="ui-icon" size={15} />}
           </button>
-          <Link className="nav-link" to="/admin/login">Admin Login</Link>
+          {/* Admin Login link removed from header per request */}
         </div>
       </header>
 
@@ -158,7 +158,7 @@ function HomePage() {
             <p>Email: mzdormitory@example.com</p>
             <p>Mobile: +63 912 345 6789</p>
           </div>
-          <Link className="btn btn-primary" to="/admin/login">Go to Admin Login</Link>
+          {/* Admin login button removed from contact section per request */}
         </section>
       </main>
     </div>
