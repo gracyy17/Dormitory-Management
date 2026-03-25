@@ -45,7 +45,7 @@ function HomePage() {
           <button className="public-theme-toggle" onClick={toggleTheme} aria-label="Toggle public theme">
             {darkMode ? <SunIcon className="ui-icon" size={15} /> : <MoonIcon className="ui-icon" size={15} />}
           </button>
-          <Link className="nav-link" to="/tenant/login">Tenant Login</Link>
+          {/* Admin Login link removed from header per request */}
         </div>
       </header>
 
@@ -60,11 +60,9 @@ function HomePage() {
             <div className="hero-tags">
               <span><ShieldIcon className="ui-icon" size={14} /> Secured Access</span>
               <span><WifiIcon className="ui-icon" size={14} /> Connected Spaces</span>
-              <span><UsersIcon className="ui-icon" size={14} /> Tenant-Centered</span>
+              <span><UsersIcon className="ui-icon" size={14} /> Admin Dashboard</span>
             </div>
-            <div className="hero-cta">
-              <Link className="btn btn-primary" to="/tenant/login">Tenant Portal</Link>
-            </div>
+            {/* Admin portal button removed from hero section per request */}
           </div>
           <aside className="hero-panel glass-panel reveal-up delay-1">
             <h3>At A Glance</h3>
@@ -164,7 +162,7 @@ function HomePage() {
             <p>Email: mzdormitory@example.com</p>
             <p>Mobile: +63 912 345 6789</p>
           </div>
-          <Link className="btn btn-primary" to="/tenant/login">Go to Tenant Login</Link>
+          {/* Admin login button removed from contact section per request */}
         </section>
       </main>
     </div>

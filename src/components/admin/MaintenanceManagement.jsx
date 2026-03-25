@@ -12,17 +12,14 @@ const formatDate = (value) => {
 };
 
 function MaintenanceManagement() {
+  const isDbConfigured = Boolean(db);
   const [requests, setRequests] = useState([]);
   const [rooms, setRooms] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(Boolean(db));
+  const [runtimeError, setRuntimeError] = useState('');
 
   useEffect(() => {
-    if (!db) {
-      setError('Firestore is not configured.');
-      setIsLoading(false);
-      return undefined;
-    }
+    if (!db) return undefined;
 
     const unsubRequests = onSnapshot(
       collection(db, 'maintenanceRequests'),
@@ -51,6 +48,8 @@ function MaintenanceManagement() {
       unsubRooms();
     };
   }, []);
+
+  const error = isDbConfigured ? runtimeError : 'Firestore is not configured.';
 
   const maintenanceRooms = useMemo(() => {
     return rooms
@@ -88,7 +87,7 @@ function MaintenanceManagement() {
         updatedAt: serverTimestamp(),
       });
     } catch {
-      setError('Unable to update maintenance request status.');
+      setRuntimeError('Unable to update maintenance request status.');
     }
   };
 
@@ -101,7 +100,7 @@ function MaintenanceManagement() {
         updatedAt: serverTimestamp(),
       });
     } catch {
-      setError('Unable to update room maintenance status.');
+      setRuntimeError('Unable to update room maintenance status.');
     }
   };
 
@@ -184,3 +183,4 @@ function MaintenanceManagement() {
 }
 
 export default MaintenanceManagement;
+

@@ -1,26 +1,36 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { addDoc, collection, doc, getDoc, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import StatusBadge from '../common/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { db, storage } from '../../lib/firebase';
 import { verifyPaymentReference } from '../../lib/paymentVerification';
 import { CalendarIcon, CardIcon, UploadIcon } from '../common/LineIcons';
+import {
+  buildCalendarMatrix,
+  formatDateYmd,
+  getNextBillingMonthLabel,
+  getMonthYearFromRecord,
+  parseDateValue,
+  toDisplayPaymentStatus,
+} from '../../lib/paymentCalendar';
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 const formatPeso = (value) => `P${Number(value || 0).toLocaleString('en-PH')}`;
-
-const parseDate = (value) => {
-  if (!value) return null;
-  if (typeof value?.toDate === 'function') return value.toDate();
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const formatDate = (value) => {
-  const parsed = parseDate(value);
-  if (!parsed) return '-';
-  return parsed.toISOString().slice(0, 10);
-};
 
 function TenantDues() {
   const { user } = useAuth();
@@ -36,8 +46,22 @@ function TenantDues() {
   const [isDuesLoading, setIsDuesLoading] = useState(true);
   const [tenantProfileImageUrl, setTenantProfileImageUrl] = useState('');
   const [tenantRoomNo, setTenantRoomNo] = useState('');
+  const [tenantName, setTenantName] = useState('');
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
   const paymongoCheckoutUrl = import.meta.env.VITE_PAYMONGO_CHECKOUT_URL;
-  const gcashQrImageUrl = import.meta.env.VITE_GCASH_QR_IMAGE_URL;
+  const gcashQrImageUrl = String(import.meta.env.VITE_GCASH_QR_IMAGE_URL || '').trim();
+  const gcashQrPayload = String(import.meta.env.VITE_GCASH_QR_PAYLOAD || '').trim();
+  const gcashQrResolvedUrl = useMemo(() => {
+    if (gcashQrImageUrl) return gcashQrImageUrl;
+    if (!gcashQrPayload) return '';
+    return `https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=${encodeURIComponent(gcashQrPayload)}`;
+  }, [gcashQrImageUrl, gcashQrPayload]);
+  const isStorageUploadEnabled = import.meta.env.VITE_ENABLE_STORAGE_UPLOAD === 'true';
+  const cloudinaryCloudName = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
+  const cloudinaryUploadPreset = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
+  const isCloudinaryUploadEnabled = Boolean(cloudinaryCloudName && cloudinaryUploadPreset);
+  const isReceiptFileUploadEnabled = isCloudinaryUploadEnabled || isStorageUploadEnabled;
 
   const paymentMethods = [
     { value: 'Maya', details: 'PayMongo e-wallet checkout' },
@@ -46,17 +70,16 @@ function TenantDues() {
   ];
 
   const dueRows = useMemo(() => {
-    const now = Date.now();
-
     return dues
       .map((due) => {
-        const dueDate = parseDate(due.dueDate);
-        const normalizedStatus = String(due.status || 'Pending').toLowerCase();
-        const status = normalizedStatus === 'paid'
-          ? 'Paid'
-          : dueDate && dueDate.getTime() < now
-            ? 'Overdue'
-            : 'Pending';
+        const dueDate = parseDateValue(due.dueDate);
+        const status = toDisplayPaymentStatus(due.status, dueDate);
+        const monthYear = getMonthYearFromRecord({
+          billingMonth: due.billingMonth,
+          dueDate,
+        });
+
+        if (!monthYear) return null;
 
         return {
           id: due.id,
@@ -66,10 +89,13 @@ function TenantDues() {
           amountValue: Number(due.amount || 0),
           amount: formatPeso(due.amount || 0),
           dueDateRaw: dueDate,
-          dueDate: formatDate(due.dueDate),
+          dueDate: formatDateYmd(dueDate),
           status,
+          year: monthYear.year,
+          month: monthYear.month,
         };
       })
+      .filter(Boolean)
       .sort((a, b) => {
         const left = a.dueDateRaw ? a.dueDateRaw.getTime() : Number.MAX_SAFE_INTEGER;
         const right = b.dueDateRaw ? b.dueDateRaw.getTime() : Number.MAX_SAFE_INTEGER;
@@ -78,7 +104,7 @@ function TenantDues() {
   }, [dues]);
 
   const currentDue = useMemo(
-    () => dueRows.find((due) => due.status === 'Pending' || due.status === 'Overdue'),
+    () => dueRows.find((due) => due.status === 'Not Paid' || due.status === 'Overdue'),
     [dueRows]
   );
 
@@ -93,6 +119,87 @@ function TenantDues() {
       paymentStatus: currentDue?.status || 'Paid',
     };
   }, [dueRows, currentDue]);
+
+  const currentDueYear = currentDue?.dueDateRaw ? currentDue.dueDateRaw.getFullYear() : null;
+  const currentDueMonth = currentDue?.dueDateRaw ? currentDue.dueDateRaw.getMonth() : null;
+
+  useEffect(() => {
+    if (!Number.isInteger(currentDueYear) || !Number.isInteger(currentDueMonth)) return;
+    setSelectedYear(currentDueYear);
+    setSelectedMonth(currentDueMonth);
+  }, [currentDueMonth, currentDueYear]);
+
+  const handlePreviousMonth = () => {
+    if (selectedMonth === 0) {
+      setSelectedMonth(11);
+      setSelectedYear((prev) => prev - 1);
+      return;
+    }
+    setSelectedMonth((prev) => prev - 1);
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 11) {
+      setSelectedMonth(0);
+      setSelectedYear((prev) => prev + 1);
+      return;
+    }
+    setSelectedMonth((prev) => prev + 1);
+  };
+
+  const monthlyDueRows = useMemo(() => {
+    return dueRows.filter((row) => row.year === selectedYear && row.month === selectedMonth);
+  }, [dueRows, selectedMonth, selectedYear]);
+
+  const selectedYearNumber = selectedYear;
+  const selectedMonthNumber = selectedMonth;
+
+  const calendarWeeks = useMemo(() => {
+    if (!Number.isInteger(selectedYearNumber) || !Number.isInteger(selectedMonthNumber)) {
+      return [];
+    }
+    return buildCalendarMatrix(selectedYearNumber, selectedMonthNumber);
+  }, [selectedMonthNumber, selectedYearNumber]);
+
+  const calendarEntriesByDay = useMemo(() => {
+    const map = new Map();
+
+    monthlyDueRows.forEach((row) => {
+      if (!row.dueDateRaw) return;
+      if (row.dueDateRaw.getFullYear() !== selectedYearNumber || row.dueDateRaw.getMonth() !== selectedMonthNumber) {
+        return;
+      }
+
+      const day = row.dueDateRaw.getDate();
+      if (!map.has(day)) {
+        map.set(day, []);
+      }
+
+      map.get(day).push({
+        id: row.id,
+        tenantName: tenantName || user?.email || 'Tenant',
+        status: row.status,
+      });
+    });
+
+    return map;
+  }, [monthlyDueRows, selectedMonthNumber, selectedYearNumber, tenantName, user?.email]);
+
+  const monthlyCounts = useMemo(() => {
+    return monthlyDueRows.reduce(
+      (acc, row) => {
+        if (row.status === 'Paid') acc.paid += 1;
+        else if (row.status === 'Overdue') acc.overdue += 1;
+        else acc.notPaid += 1;
+        return acc;
+      },
+      { paid: 0, notPaid: 0, overdue: 0 }
+    );
+  }, [monthlyDueRows]);
+
+  const selectedLabel = useMemo(() => {
+    return `${MONTH_NAMES[selectedMonth]} ${selectedYear}`;
+  }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
     if (!db || !user?.uid) {
@@ -133,7 +240,7 @@ function TenantDues() {
     );
 
     return unsubscribe;
-  }, [user?.uid]);
+  }, [user?.email, user?.uid]);
 
   useEffect(() => {
     if (!db || !user?.uid) {
@@ -161,7 +268,7 @@ function TenantDues() {
     );
 
     return unsubscribe;
-  }, [user?.uid]);
+  }, [user?.email, user?.uid]);
 
   useEffect(() => {
     const loadTenantProfilePhoto = async () => {
@@ -176,15 +283,17 @@ function TenantDues() {
         if (userDoc.exists()) {
           setTenantProfileImageUrl(userDoc.data()?.profileImageDataUrl || userDoc.data()?.profileImageUrl || '');
           setTenantRoomNo(userDoc.data()?.roomNo || '');
+          setTenantName(userDoc.data()?.fullName || userDoc.data()?.email || user.email || 'Tenant');
         }
       } catch {
         setTenantProfileImageUrl('');
         setTenantRoomNo('');
+        setTenantName(user.email || 'Tenant');
       }
     };
 
     loadTenantProfilePhoto();
-  }, [user?.uid]);
+  }, [user?.email, user?.uid]);
 
   const handlePayNow = () => {
     if (!currentDue) {
@@ -197,7 +306,7 @@ function TenantDues() {
       return;
     }
 
-    setPaymentStatus(`Redirecting to PayMongo (${paymentMethod}) for ${currentDue.month}...`);
+    setPaymentStatus(`Redirecting to PayMongo (${paymentMethod}) for ${currentDue.billingMonth}...`);
     window.location.assign(paymongoCheckoutUrl);
   };
 
@@ -231,21 +340,66 @@ function TenantDues() {
       let receiptPath = '';
       let uploadNote = '';
 
-      if (receiptFile) {
-        if (storage) {
-          try {
-            const timestamp = Date.now();
-            const safeFileName = receiptFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            receiptPath = `payment-receipts/${user.uid}/${timestamp}-${safeFileName}`;
-            const receiptRef = ref(storage, receiptPath);
+      const uploadReceiptToCloudinary = async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', cloudinaryUploadPreset);
+        formData.append('folder', 'dormitory/payment-receipts');
 
-            await uploadBytes(receiptRef, receiptFile);
-            receiptUrl = await getDownloadURL(receiptRef);
-          } catch {
-            uploadNote = 'Receipt upload failed. Using manual review evidence if provided.';
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error?.message || 'Cloudinary upload failed.');
+        }
+
+        return {
+          url: payload?.secure_url || payload?.url || '',
+          path: payload?.public_id || '',
+        };
+      };
+
+      if (receiptFile) {
+        if (isCloudinaryUploadEnabled) {
+          try {
+            const uploadedReceipt = await uploadReceiptToCloudinary(receiptFile);
+            receiptUrl = uploadedReceipt.url;
+            receiptPath = uploadedReceipt.path;
+          } catch (error) {
+            const message = typeof error?.message === 'string' ? error.message : '';
+            uploadNote = message ? `Cloudinary upload failed: ${message}` : 'Cloudinary upload failed. Using fallback upload options.';
           }
-        } else {
-          uploadNote = 'Storage upload unavailable on current Firebase plan.';
+        }
+
+        if (!receiptUrl) {
+          if (!isStorageUploadEnabled) {
+            setPaymentStatus('Receipt upload fallback is unavailable. Please provide a receipt link instead.');
+            setIsSubmittingReceipt(false);
+            return;
+          }
+
+          if (storage) {
+            try {
+              const timestamp = Date.now();
+              const safeFileName = receiptFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+              receiptPath = `payment-receipts/${user.uid}/${timestamp}-${safeFileName}`;
+              const receiptRef = ref(storage, receiptPath);
+
+              await uploadBytes(receiptRef, receiptFile);
+              receiptUrl = await getDownloadURL(receiptRef);
+            } catch (error) {
+              const code = typeof error?.code === 'string' ? error.code : '';
+              const isLikelyBucketConfigIssue = code.includes('storage/unknown') || code.includes('storage/unauthorized');
+              uploadNote = isLikelyBucketConfigIssue
+                ? 'Receipt upload failed. Firebase Storage bucket/config likely needs an update.'
+                : 'Receipt upload failed. Using manual review evidence if provided.';
+            }
+          } else {
+            uploadNote = 'Storage upload unavailable on current Firebase plan.';
+          }
         }
       }
 
@@ -287,6 +441,64 @@ function TenantDues() {
         reviewedAt: null,
         reviewedBy: null,
       });
+
+      const normalizedVerificationStatus = String(verification.status || '').toLowerCase();
+      const isAutoPaid = ['approved', 'verified', 'paid'].includes(normalizedVerificationStatus);
+
+      if (isAutoPaid) {
+        const currentDueQuery = query(
+          collection(db, 'dues'),
+          where('tenantUid', '==', user.uid),
+          where('billingMonth', '==', currentDue.billingMonth || '')
+        );
+        const currentDueSnapshot = await getDocs(currentDueQuery);
+        const currentDueDoc = currentDueSnapshot.docs[0] || null;
+        const currentDueData = currentDueDoc?.data?.() || {};
+
+        if (currentDueDoc) {
+          await updateDoc(doc(db, 'dues', currentDueDoc.id), {
+            status: 'Paid',
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid,
+            updatedByEmail: user.email,
+          });
+        }
+
+        const nextBillingMonth = getNextBillingMonthLabel(currentDue.billingMonth || currentDueData.billingMonth || '');
+        if (nextBillingMonth) {
+          const nextDueQuery = query(
+            collection(db, 'dues'),
+            where('tenantUid', '==', user.uid),
+            where('billingMonth', '==', nextBillingMonth)
+          );
+          const nextDueSnapshot = await getDocs(nextDueQuery);
+
+          if (nextDueSnapshot.empty) {
+            const monthlyRate = Number(currentDueData.monthlyRate || currentDueData.amount || currentDue.amountValue || 0);
+            const baseDueDate = parseDateValue(currentDueData.dueDate || currentDue.dueDateRaw || currentDue.dueDate);
+            const nextDueDate = baseDueDate
+              ? new Date(baseDueDate.getFullYear(), baseDueDate.getMonth() + 1, baseDueDate.getDate())
+              : new Date();
+
+            await addDoc(collection(db, 'dues'), {
+              tenantUid: user.uid,
+              tenantEmail: user.email,
+              roomNo: currentDueData.roomNo || tenantRoomNo || '',
+              billingMonth: nextBillingMonth,
+              dueDate: nextDueDate.toISOString().slice(0, 10),
+              monthlyRate,
+              electricBill: 0,
+              amount: monthlyRate,
+              status: 'Pending',
+              createdAt: serverTimestamp(),
+              createdBy: user.uid,
+              updatedAt: serverTimestamp(),
+              updatedBy: user.uid,
+              updatedByEmail: user.email,
+            });
+          }
+        }
+      }
 
       setReceiptFile(null);
       setReceiptLink('');
@@ -375,8 +587,8 @@ function TenantDues() {
             <form className="tenant-receipt-form" onSubmit={handleSubmitReceipt}>
               <div className="tenant-gcash-layout">
                 <div className="tenant-gcash-preview tenant-gcash-preview-pane">
-                  {gcashQrImageUrl ? (
-                    <img className="tenant-gcash-qr" src={gcashQrImageUrl} alt="Admin GCash QR" />
+                  {gcashQrResolvedUrl ? (
+                    <img className="tenant-gcash-qr" src={gcashQrResolvedUrl} alt="Admin GCash QR" />
                   ) : (
                     <div className="tenant-gcash-placeholder">
                       <span>QR</span>
@@ -386,9 +598,9 @@ function TenantDues() {
                   <div>
                     <p className="tenant-gcash-title">Scan to pay via GCash</p>
                     <p className="tenant-gcash-help">
-                      {gcashQrImageUrl
+                      {gcashQrResolvedUrl
                         ? 'Use your GCash app, complete payment, then upload your receipt details.'
-                        : 'Configure VITE_GCASH_QR_IMAGE_URL in .env to display your QR code.'}
+                        : 'Configure VITE_GCASH_QR_IMAGE_URL or VITE_GCASH_QR_PAYLOAD in .env to display your QR code.'}
                     </p>
                     <div className="tenant-gcash-due-meta">
                       <span>Billing: {currentDue?.billingMonth || 'No pending due'}</span>
@@ -408,16 +620,24 @@ function TenantDues() {
                   />
 
                   <div className="tenant-receipt-actions">
-                    <label htmlFor="receipt-file" className="tenant-upload-btn" title="Upload receipt image">
-                      <UploadIcon className="ui-icon" size={15} />
-                      <span>{receiptFile ? receiptFile.name : 'Upload Receipt'}</span>
-                    </label>
-                    <input
-                      id="receipt-file"
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => setReceiptFile(event.target.files?.[0] || null)}
-                    />
+                    {isReceiptFileUploadEnabled ? (
+                      <>
+                        <label htmlFor="receipt-file" className="tenant-upload-btn" title="Upload receipt image">
+                          <UploadIcon className="ui-icon" size={15} />
+                          <span>{receiptFile ? receiptFile.name : 'Upload Receipt'}</span>
+                        </label>
+                        <input
+                          id="receipt-file"
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => setReceiptFile(event.target.files?.[0] || null)}
+                        />
+                      </>
+                    ) : (
+                      <p className="tenant-gcash-help" style={{ margin: 0 }}>
+                        File upload is disabled. Use a receipt link below.
+                      </p>
+                    )}
 
                     <button type="submit" className="tenant-pay-btn" disabled={isSubmittingReceipt}>
                       {isSubmittingReceipt ? 'Submitting...' : 'Submit Dues Receipt'}
@@ -429,7 +649,7 @@ function TenantDues() {
                     type="url"
                     value={receiptLink}
                     onChange={(event) => setReceiptLink(event.target.value)}
-                    placeholder="(Optional) Receipt link"
+                    placeholder={isReceiptFileUploadEnabled ? '(Optional) Receipt link' : 'Required: Receipt link (Google Drive, image URL, etc.)'}
                   />
                 </div>
               </div>
@@ -450,11 +670,20 @@ function TenantDues() {
 
       <section className="tenant-table-wrap">
         <div className="tenant-panel-header">
-          <h2>Monthly Dues Ledger</h2>
-          <p>Review your current billing schedule and due states.</p>
+          <h2>Monthly Dues Ledger - {selectedLabel}</h2>
+          <p>Review your selected month and year dues status.</p>
         </div>
+
+        <div className="tenant-month-summary">
+          <span className="summary-pill paid">Paid: {monthlyCounts.paid}</span>
+          <span className="summary-pill not-paid">Not Paid: {monthlyCounts.notPaid}</span>
+          <span className="summary-pill overdue">Overdue: {monthlyCounts.overdue}</span>
+        </div>
+
         {isDuesLoading ? (
           <p>Loading dues...</p>
+        ) : monthlyDueRows.length === 0 ? (
+          <p>No dues found for this month and year.</p>
         ) : (
           <table className="tenant-simple-table">
             <thead>
@@ -463,18 +692,91 @@ function TenantDues() {
               </tr>
             </thead>
             <tbody>
-              {dueRows.map((row) => (
+              {monthlyDueRows.map((row) => (
                 <tr key={row.id}>
                   <td>{row.billingMonth}</td>
                   <td>{row.monthlyRate}</td>
                   <td>{row.electricBill}</td>
                   <td>{row.amount}</td>
                   <td>{row.dueDate}</td>
-                  <td><StatusBadge status={row.status} type={row.status.toLowerCase()} /></td>
+                  <td><StatusBadge status={row.status} type={row.status.toLowerCase().replace(' ', '-')} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
+        )}
+      </section>
+
+      <section className="tenant-table-wrap">
+        <div className="tenant-panel-header">
+          <h2>Calendar View - {selectedLabel}</h2>
+          <p>Per-day due list with your payment status.</p>
+          <div className="tenant-calendar-nav">
+            <button
+              type="button"
+              className="tenant-month-nav-btn"
+              onClick={handlePreviousMonth}
+              aria-label="Previous month"
+            >
+              ←
+            </button>
+            <button
+              type="button"
+              className="tenant-month-nav-btn"
+              onClick={handleNextMonth}
+              aria-label="Next month"
+            >
+              →
+            </button>
+          </div>
+        </div>
+
+        {calendarWeeks.length === 0 ? (
+          <p>No calendar data available.</p>
+        ) : (
+          <>
+            <div className="tenant-calendar-head">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName) => (
+                <span key={dayName}>{dayName}</span>
+              ))}
+            </div>
+
+            <div className="tenant-calendar-grid">
+              {calendarWeeks.flatMap((week, weekIndex) =>
+                week.map((day, dayIndex) => {
+                  const dayEntries = day ? (calendarEntriesByDay.get(day) || []) : [];
+
+                  return (
+                    <div
+                      key={`tenant-calendar-cell-${weekIndex}-${dayIndex}`}
+                      className={day ? 'tenant-calendar-cell' : 'tenant-calendar-cell is-empty'}
+                    >
+                      {day ? (
+                        <>
+                          <div className="tenant-calendar-day">{day}</div>
+                          <div className="tenant-calendar-entries">
+                            {dayEntries.length === 0 ? (
+                              <p className="calendar-empty-note">No dues</p>
+                            ) : (
+                              dayEntries.map((entry) => (
+                                <div key={`tenant-entry-${entry.id}`} className="calendar-entry">
+                                  <span className="calendar-entry-name">{entry.tenantName}</span>
+                                  <StatusBadge
+                                    status={entry.status}
+                                    type={entry.status.toLowerCase().replace(' ', '-')}
+                                  />
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </>
         )}
       </section>
 

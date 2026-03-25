@@ -1,9 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { collection, doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+  updateDoc,
+} from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
 import StatusBadge from '../common/StatusBadge';
-import { db } from '../../lib/firebase';
-import { LockIcon, MailIcon, UnlockIcon, UserIcon, UsersIcon } from '../common/LineIcons';
+import { auth, db } from '../../lib/firebase';
+import { LockIcon, MailIcon, UnlockIcon, UserIcon, UsersIcon, XCircleIcon } from '../common/LineIcons';
 
 const formatDate = (value) => {
   if (!value) return '-';
@@ -12,17 +18,34 @@ const formatDate = (value) => {
 };
 
 function UsersManagement() {
+  const isDbConfigured = Boolean(db);
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    if (!db) {
-      setError('Firestore is not configured.');
-      return undefined;
+  const deleteAccountEndpoint = useMemo(() => {
+    const configured = String(import.meta.env.VITE_DELETE_USER_ACCOUNT_URL || '').trim();
+    const projectId = String(import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim();
+    const fallback = projectId
+      ? `https://asia-southeast1-${projectId}.cloudfunctions.net/deleteUserAccountNow`
+      : '';
+
+    const isLocalConfiguredEndpoint = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(configured);
+    const isRunningLocally =
+      typeof window !== 'undefined'
+      && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+
+    if (!configured || (isLocalConfiguredEndpoint && !isRunningLocally)) {
+      return fallback;
     }
+
+    return configured;
+  }, []);
+
+  useEffect(() => {
+    if (!db) return undefined;
 
     const unsubscribe = onSnapshot(
       collection(db, 'users'),
@@ -37,6 +60,8 @@ function UsersManagement() {
 
     return unsubscribe;
   }, []);
+
+  const displayError = isDbConfigured ? error : 'Firestore is not configured.';
 
   const userRows = useMemo(() => {
     return users.map((user) => ({
@@ -99,6 +124,55 @@ function UsersManagement() {
       );
     } catch {
       setError('Unable to update reminder setting right now.');
+    }
+  };
+
+  const handleDeleteAccount = async (row) => {
+    if (!db) return;
+
+    if (row.id === auth.currentUser?.uid) {
+      setError('You cannot delete your own admin account from this page.');
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `Permanently delete account ${row.email}? This action cannot be undone.`
+    );
+    if (!shouldDelete) return;
+
+    setError('');
+    setSuccess('');
+
+    try {
+      if (!deleteAccountEndpoint) {
+        setError('Delete endpoint is not configured. Deploy functions and set VITE_DELETE_USER_ACCOUNT_URL if needed.');
+        return;
+      }
+
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        setError('Your session expired. Please sign in again.');
+        return;
+      }
+
+      const response = await fetch(deleteAccountEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ targetUid: row.id }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Delete request failed.');
+      }
+
+      setSuccess(`Permanently deleted account ${row.email}.`);
+    } catch (deleteError) {
+      const message = typeof deleteError?.message === 'string' ? deleteError.message : '';
+      setError(message ? `Unable to delete account right now: ${message}` : 'Unable to delete account right now.');
     }
   };
 
@@ -182,7 +256,7 @@ function UsersManagement() {
           </button>
         </section>
 
-        {error && <p className="admin-feedback is-error">{error}</p>}
+        {displayError && <p className="admin-feedback is-error">{displayError}</p>}
         {success && <p className="admin-feedback is-success">{success}</p>}
 
         <section className="dashboard-surface users-table-card">
@@ -237,6 +311,13 @@ function UsersManagement() {
                         >
                           <MailIcon className="ui-icon" size={14} />
                         </button>
+                        <button
+                          className="users-action-btn is-danger"
+                          onClick={() => handleDeleteAccount(row)}
+                          title="Delete account"
+                        >
+                          <XCircleIcon className="ui-icon" size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -252,3 +333,4 @@ function UsersManagement() {
 }
 
 export default UsersManagement;
+

@@ -6,48 +6,236 @@ on:
       - main
       - admin
       - tenant
+      - public-page
 
 jobs:
-  deploy:
+  validate:
     runs-on: ubuntu-latest
-    name: Deploy to Firebase Hosting
+    name: Validate Before Deploy
+    env:
+      VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+      VITE_CLOUDINARY_CLOUD_NAME: ${{ vars.VITE_CLOUDINARY_CLOUD_NAME || secrets.VITE_CLOUDINARY_CLOUD_NAME }}
+      VITE_CLOUDINARY_UPLOAD_PRESET: ${{ vars.VITE_CLOUDINARY_UPLOAD_PRESET || secrets.VITE_CLOUDINARY_UPLOAD_PRESET }}
+      VITE_GCASH_QR_IMAGE_URL: ${{ vars.VITE_GCASH_QR_IMAGE_URL || secrets.VITE_GCASH_QR_IMAGE_URL }}
+      VITE_GCASH_QR_PAYLOAD: ${{ vars.VITE_GCASH_QR_PAYLOAD || secrets.VITE_GCASH_QR_PAYLOAD }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '18'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Check optional frontend env vars
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          [ -n "${VITE_CLOUDINARY_CLOUD_NAME:-}" ] && echo "VITE_CLOUDINARY_CLOUD_NAME is set." || echo "WARNING: VITE_CLOUDINARY_CLOUD_NAME is empty."
+          [ -n "${VITE_CLOUDINARY_UPLOAD_PRESET:-}" ] && echo "VITE_CLOUDINARY_UPLOAD_PRESET is set." || echo "WARNING: VITE_CLOUDINARY_UPLOAD_PRESET is empty."
+          [ -n "${VITE_GCASH_QR_PAYLOAD:-}" ] && echo "VITE_GCASH_QR_PAYLOAD is set." || echo "WARNING: VITE_GCASH_QR_PAYLOAD is empty."
+          [ -n "${VITE_GCASH_QR_IMAGE_URL:-}" ] && echo "VITE_GCASH_QR_IMAGE_URL is set." || echo "INFO: VITE_GCASH_QR_IMAGE_URL is empty (payload mode can still work)."
+
+      - name: Run dev server smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/vite-dev.log 2>&1 &
+          DEV_PID=$!
+
+          cleanup() {
+            if kill -0 "$DEV_PID" 2>/dev/null; then
+              kill "$DEV_PID" 2>/dev/null || true
+              wait "$DEV_PID" 2>/dev/null || true
+            fi
+          }
+
+          trap cleanup EXIT
+
+          for _ in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173 >/dev/null; then
+              echo "Vite dev server responded successfully."
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "Vite dev server failed to respond within timeout."
+          cat /tmp/vite-dev.log || true
+          exit 1
+
+      - name: Validate Firebase build secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+          [ -n "${VITE_FIREBASE_API_KEY:-}" ] || missing+=("FIREBASE_API_KEY")
+          [ -n "${VITE_FIREBASE_AUTH_DOMAIN:-}" ] || missing+=("FIREBASE_AUTH_DOMAIN")
+          [ -n "${VITE_FIREBASE_PROJECT_ID:-}" ] || missing+=("FIREBASE_PROJECT_ID")
+          [ -n "${VITE_FIREBASE_STORAGE_BUCKET:-}" ] || missing+=("FIREBASE_STORAGE_BUCKET")
+          [ -n "${VITE_FIREBASE_MESSAGING_SENDER_ID:-}" ] || missing+=("FIREBASE_MESSAGING_SENDER_ID")
+          [ -n "${VITE_FIREBASE_APP_ID:-}" ] || missing+=("FIREBASE_APP_ID")
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing required GitHub secrets: ${missing[*]}"
+            echo "Add these in GitHub repo Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+          malformed=()
+          [[ "${VITE_FIREBASE_API_KEY}" == FIREBASE_API_KEY=* || "${VITE_FIREBASE_API_KEY}" == VITE_FIREBASE_API_KEY=* ]] && malformed+=("FIREBASE_API_KEY")
+          [[ "${VITE_FIREBASE_AUTH_DOMAIN}" == FIREBASE_AUTH_DOMAIN=* || "${VITE_FIREBASE_AUTH_DOMAIN}" == VITE_FIREBASE_AUTH_DOMAIN=* ]] && malformed+=("FIREBASE_AUTH_DOMAIN")
+          [[ "${VITE_FIREBASE_PROJECT_ID}" == FIREBASE_PROJECT_ID=* || "${VITE_FIREBASE_PROJECT_ID}" == VITE_FIREBASE_PROJECT_ID=* ]] && malformed+=("FIREBASE_PROJECT_ID")
+          [[ "${VITE_FIREBASE_STORAGE_BUCKET}" == FIREBASE_STORAGE_BUCKET=* || "${VITE_FIREBASE_STORAGE_BUCKET}" == VITE_FIREBASE_STORAGE_BUCKET=* ]] && malformed+=("FIREBASE_STORAGE_BUCKET")
+          [[ "${VITE_FIREBASE_MESSAGING_SENDER_ID}" == FIREBASE_MESSAGING_SENDER_ID=* || "${VITE_FIREBASE_MESSAGING_SENDER_ID}" == VITE_FIREBASE_MESSAGING_SENDER_ID=* ]] && malformed+=("FIREBASE_MESSAGING_SENDER_ID")
+          [[ "${VITE_FIREBASE_APP_ID}" == FIREBASE_APP_ID=* || "${VITE_FIREBASE_APP_ID}" == VITE_FIREBASE_APP_ID=* ]] && malformed+=("FIREBASE_APP_ID")
+
+          if [ ${#malformed[@]} -gt 0 ]; then
+            echo "Malformed Firebase values detected for: ${malformed[*]}"
+            echo "Use only raw values in GitHub Secrets/Variables (no NAME= prefix)."
+            exit 1
+          fi
+
+          echo "All required Firebase build secrets are present."
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build project
+        run: npm run build
+
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Firebase Hosting
+    needs: validate
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/dorm-27fe2-firebase-adminsdk-fbsvc-634e7e241c.json
+      VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+      VITE_CLOUDINARY_CLOUD_NAME: ${{ vars.VITE_CLOUDINARY_CLOUD_NAME || secrets.VITE_CLOUDINARY_CLOUD_NAME }}
+      VITE_CLOUDINARY_UPLOAD_PRESET: ${{ vars.VITE_CLOUDINARY_UPLOAD_PRESET || secrets.VITE_CLOUDINARY_UPLOAD_PRESET }}
+      VITE_GCASH_QR_IMAGE_URL: ${{ vars.VITE_GCASH_QR_IMAGE_URL || secrets.VITE_GCASH_QR_IMAGE_URL }}
+      VITE_GCASH_QR_PAYLOAD: ${{ vars.VITE_GCASH_QR_PAYLOAD || secrets.VITE_GCASH_QR_PAYLOAD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Firebase build secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+          [ -n "${VITE_FIREBASE_API_KEY:-}" ] || missing+=("FIREBASE_API_KEY")
+          [ -n "${VITE_FIREBASE_AUTH_DOMAIN:-}" ] || missing+=("FIREBASE_AUTH_DOMAIN")
+          [ -n "${VITE_FIREBASE_PROJECT_ID:-}" ] || missing+=("FIREBASE_PROJECT_ID")
+          [ -n "${VITE_FIREBASE_STORAGE_BUCKET:-}" ] || missing+=("FIREBASE_STORAGE_BUCKET")
+          [ -n "${VITE_FIREBASE_MESSAGING_SENDER_ID:-}" ] || missing+=("FIREBASE_MESSAGING_SENDER_ID")
+          [ -n "${VITE_FIREBASE_APP_ID:-}" ] || missing+=("FIREBASE_APP_ID")
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing required GitHub secrets: ${missing[*]}"
+            echo "Add these in GitHub repo Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+          malformed=()
+          [[ "${VITE_FIREBASE_API_KEY}" == FIREBASE_API_KEY=* || "${VITE_FIREBASE_API_KEY}" == VITE_FIREBASE_API_KEY=* ]] && malformed+=("FIREBASE_API_KEY")
+          [[ "${VITE_FIREBASE_AUTH_DOMAIN}" == FIREBASE_AUTH_DOMAIN=* || "${VITE_FIREBASE_AUTH_DOMAIN}" == VITE_FIREBASE_AUTH_DOMAIN=* ]] && malformed+=("FIREBASE_AUTH_DOMAIN")
+          [[ "${VITE_FIREBASE_PROJECT_ID}" == FIREBASE_PROJECT_ID=* || "${VITE_FIREBASE_PROJECT_ID}" == VITE_FIREBASE_PROJECT_ID=* ]] && malformed+=("FIREBASE_PROJECT_ID")
+          [[ "${VITE_FIREBASE_STORAGE_BUCKET}" == FIREBASE_STORAGE_BUCKET=* || "${VITE_FIREBASE_STORAGE_BUCKET}" == VITE_FIREBASE_STORAGE_BUCKET=* ]] && malformed+=("FIREBASE_STORAGE_BUCKET")
+          [[ "${VITE_FIREBASE_MESSAGING_SENDER_ID}" == FIREBASE_MESSAGING_SENDER_ID=* || "${VITE_FIREBASE_MESSAGING_SENDER_ID}" == VITE_FIREBASE_MESSAGING_SENDER_ID=* ]] && malformed+=("FIREBASE_MESSAGING_SENDER_ID")
+          [[ "${VITE_FIREBASE_APP_ID}" == FIREBASE_APP_ID=* || "${VITE_FIREBASE_APP_ID}" == VITE_FIREBASE_APP_ID=* ]] && malformed+=("FIREBASE_APP_ID")
+
+          if [ ${#malformed[@]} -gt 0 ]; then
+            echo "Malformed Firebase values detected for: ${malformed[*]}"
+            echo "Use only raw values in GitHub Secrets/Variables (no NAME= prefix)."
+            exit 1
+          fi
+
+          echo "All required Firebase build secrets are present."
+
       - name: Build for production
         run: npm run build
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Create service account file from secret
+        shell: bash
         env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
-
-      - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
-          channelId: live
-
-      - name: 🚀 Deployment successful
-        run: echo "Application deployed to Firebase Hosting!"
-
-      - name: ❌ Deployment failed
-        if: failure()
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_SERVICE_ACCOUNT_DORM_27FE2: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DORM_27FE2 }}
         run: |
-          echo "Deployment to Firebase failed."
+          set -euo pipefail
+
+          validate_service_account_json() {
+            local file_path="$1"
+            grep -q '"type"[[:space:]]*:[[:space:]]*"service_account"' "$file_path" \
+              && grep -q '"project_id"[[:space:]]*:[[:space:]]*"' "$file_path" \
+              && grep -q '"private_key"[[:space:]]*:[[:space:]]*"' "$file_path" \
+              && grep -q '"client_email"[[:space:]]*:[[:space:]]*"' "$file_path"
+          }
+
+          SERVICE_ACCOUNT_VALUE=""
+
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            SERVICE_ACCOUNT_VALUE="$FIREBASE_SERVICE_ACCOUNT"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT_DORM_27FE2" ]; then
+            SERVICE_ACCOUNT_VALUE="$FIREBASE_SERVICE_ACCOUNT_DORM_27FE2"
+          else
+            echo "Missing Firebase service account secret. Add FIREBASE_SERVICE_ACCOUNT in GitHub Actions secrets."
+            exit 1
+          fi
+
+          printf '%s' "$SERVICE_ACCOUNT_VALUE" > "$GOOGLE_APPLICATION_CREDENTIALS"
+
+          if validate_service_account_json "$GOOGLE_APPLICATION_CREDENTIALS"; then
+            echo "Service account secret parsed as raw JSON."
+            exit 0
+          fi
+
+          if printf '%s' "$SERVICE_ACCOUNT_VALUE" | base64 --decode > "$GOOGLE_APPLICATION_CREDENTIALS" 2>/dev/null \
+            && validate_service_account_json "$GOOGLE_APPLICATION_CREDENTIALS"; then
+            echo "Service account secret parsed as base64 JSON."
+            exit 0
+          fi
+
+          echo "Invalid Firebase service account secret format."
+          echo "Set FIREBASE_SERVICE_ACCOUNT as either raw JSON or base64-encoded JSON for a service account key."
           exit 1
+
+      - name: Verify service account file
+        run: |
+          test -s "$GOOGLE_APPLICATION_CREDENTIALS"
+          echo "Service account file found."
+
+      - name: Deploy to Firebase Hosting
+        run: firebase deploy --only hosting --project dorm-27fe2 --non-interactive

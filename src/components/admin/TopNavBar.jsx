@@ -28,22 +28,11 @@ const parseDate = (value) => {
 function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [lastSeenAt, setLastSeenAt] = useState(0);
   const [payments, setPayments] = useState([]);
   const [dues, setDues] = useState([]);
   const [maintenanceRequests, setMaintenanceRequests] = useState([]);
   const [profileName, setProfileName] = useState('');
   const { user, logout } = useAuth();
-
-  const storageKey = useMemo(
-    () => `admin_notifications_last_seen_${user?.uid || 'anon'}`,
-    [user?.uid]
-  );
-
-  useEffect(() => {
-    const saved = Number(window.localStorage.getItem(storageKey) || 0);
-    setLastSeenAt(Number.isNaN(saved) ? 0 : saved);
-  }, [storageKey]);
 
   useEffect(() => {
     if (!db) return undefined;
@@ -86,10 +75,7 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
   }, []);
 
   useEffect(() => {
-    if (!db || !user?.uid) {
-      setProfileName('');
-      return undefined;
-    }
+    if (!db || !user?.uid) return undefined;
 
     const unsubscribe = onSnapshot(
       doc(db, 'users', user.uid),
@@ -106,10 +92,11 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
   }, [user?.uid]);
 
   const notificationItems = useMemo(() => {
-    const now = Date.now();
-
     const paymentItems = payments
-      .filter((payment) => String(payment.status || '').toLowerCase() === 'pending')
+      .filter((payment) => {
+        const status = String(payment.status || '').toLowerCase();
+        return ['pending', 'pending review', 'pending-review', 'needs-review', 'not paid'].includes(status);
+      })
       .map((payment) => ({
         id: `payment-${payment.id}`,
         icon: <CardIcon className="ui-icon" size={16} />,
@@ -123,11 +110,7 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
     const dueItems = dues
       .filter((due) => {
         const status = String(due.status || '').toLowerCase();
-        if (status === 'paid') return false;
-
-        const dueDate = parseDate(due.dueDate);
-        if (!dueDate) return status === 'pending' || status === 'overdue';
-        return dueDate.getTime() <= now || status === 'overdue';
+        return status === 'pending' || status === 'overdue';
       })
       .map((due) => ({
         id: `due-${due.id}`,
@@ -159,10 +142,7 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
       .slice(0, 12);
   }, [dues, maintenanceRequests, payments]);
 
-  const unreadNotifications = useMemo(
-    () => notificationItems.filter((item) => (item.sortAt || 0) > lastSeenAt).length,
-    [notificationItems, lastSeenAt]
-  );
+  const unreadNotifications = notificationItems.length;
 
   const identityLabel = useMemo(() => {
     if (profileName) return profileName;
@@ -201,12 +181,6 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
               const nextOpen = !showNotifications;
               setShowNotifications(nextOpen);
               setShowProfile(false);
-
-              if (nextOpen) {
-                const seenTime = Date.now();
-                setLastSeenAt(seenTime);
-                window.localStorage.setItem(storageKey, String(seenTime));
-              }
             }}
           >
             <BellIcon className="ui-icon" size={17} />
@@ -291,3 +265,4 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
 }
 
 export default TopNavBar;
+

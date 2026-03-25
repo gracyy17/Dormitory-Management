@@ -36,7 +36,6 @@ function TenantMaintenance() {
 
   useEffect(() => {
     if (!db || !user?.uid) {
-      setRequests([]);
       return undefined;
     }
 

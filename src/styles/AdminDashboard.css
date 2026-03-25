@@ -272,7 +272,8 @@ body {
   justify-content: space-between;
   box-shadow: 0 2px 8px rgba(100, 116, 139, 0.08);
   border-bottom: 1px solid #dbe3ee;
-  gap: 20px;
+  position: relative;
+  z-index: 30;
 }
 
 .navbar-left {
@@ -1105,6 +1106,28 @@ body {
   border-color: #24344b;
 }
 
+.admin-layout.dark-mode .modal-header,
+.admin-layout.dark-mode .modal-actions {
+  border-color: #24344b;
+}
+
+.admin-layout.dark-mode .modal-title {
+  color: #e7f0ff;
+}
+
+.admin-layout.dark-mode .modal-close {
+  color: #c8d7eb;
+}
+
+.admin-layout.dark-mode .modal-close:hover {
+  background-color: #1e2e44;
+  color: #f2f7ff;
+}
+
+.admin-layout.dark-mode .modal-body {
+  color: #d3e1f4;
+}
+
 .admin-layout.dark-mode .dashboard-pill.is-positive {
   background: #123428;
   color: #87e3b9;
@@ -1337,6 +1360,199 @@ body {
   background: linear-gradient(90deg, transparent, rgba(196, 216, 247, 0.25), transparent);
 }
 
+.payment-month-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.payment-month-filter label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.payment-month-filter select {
+  min-width: 150px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.payment-month-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.summary-pill {
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.summary-pill.paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.summary-pill.not-paid {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.summary-pill.overdue {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.payment-month-table-wrap {
+  overflow-x: auto;
+}
+
+.payment-month-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.payment-month-table th,
+.payment-month-table td {
+  text-align: left;
+  padding: 9px 11px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.payment-month-table th {
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.payment-calendar-head {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.payment-calendar-head span {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.payment-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.payment-calendar-cell {
+  min-height: 130px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #f8fbff;
+  padding: 8px;
+}
+
+.payment-calendar-cell.is-empty {
+  background: #f1f5f9;
+}
+
+.payment-calendar-day {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.payment-calendar-entries {
+  display: grid;
+  gap: 6px;
+}
+
+.payment-calendar-entries .calendar-entry {
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+}
+
+.payment-calendar-entries .calendar-entry-name {
+  font-size: 12px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.payment-calendar-entries .calendar-empty-note {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.admin-layout.dark-mode .payment-month-filter label,
+.admin-layout.dark-mode .payment-calendar-day,
+.admin-layout.dark-mode .payment-calendar-entries .calendar-entry-name {
+  color: #d8e5f8;
+}
+
+.admin-layout.dark-mode .payment-month-filter select {
+  background: #132133;
+  border-color: #2a3b53;
+  color: #d8e5f8;
+}
+
+.admin-layout.dark-mode .summary-pill.paid {
+  background: #143128;
+  color: #9be2bd;
+}
+
+.admin-layout.dark-mode .summary-pill.not-paid {
+  background: #213247;
+  color: #bcd0e9;
+}
+
+.admin-layout.dark-mode .summary-pill.overdue {
+  background: #3b1d22;
+  color: #ff9ea9;
+}
+
+.admin-layout.dark-mode .payment-month-table th,
+.admin-layout.dark-mode .payment-month-table td,
+.admin-layout.dark-mode .payment-calendar-cell,
+.admin-layout.dark-mode .payment-calendar-entries .calendar-entry {
+  border-color: #2a3b53;
+}
+
+.admin-layout.dark-mode .payment-month-table th,
+.admin-layout.dark-mode .payment-calendar-cell,
+.admin-layout.dark-mode .payment-calendar-cell.is-empty {
+  background: #132133;
+}
+
+.admin-layout.dark-mode .payment-month-table td,
+.admin-layout.dark-mode .payment-calendar-entries .calendar-entry {
+  background: #0f1b2b;
+  color: #d8e5f8;
+}
+
+.admin-layout.dark-mode .payment-calendar-head span,
+.admin-layout.dark-mode .payment-calendar-entries .calendar-empty-note {
+  color: #9fb1cc;
+}
+
 .admin-layout.dark-mode .users-page .dashboard-surface,
 .admin-layout.dark-mode .rooms-management-page .dashboard-widget,
 .admin-layout.dark-mode .rooms-management-page .filters-section,
@@ -1400,6 +1616,15 @@ body {
   .payments-loading-row .skeleton-pill:nth-child(4),
   .payments-loading-row .skeleton-pill:nth-child(5) {
     display: none;
+  }
+
+  .payment-calendar-grid,
+  .payment-calendar-head {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .payment-calendar-cell {
+    min-height: 110px;
   }
 }
 
@@ -2486,6 +2711,10 @@ body {
 
 .users-action-btn.is-accent {
   color: #334155;
+}
+
+.users-action-btn.is-danger {
+  color: #b91c1c;
 }
 
 .admin-layout.dark-mode .users-stat-icon {

@@ -2,8 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import PublicRoutes from './pages/PublicRoutes';
 import AdminRoutes from './pages/AdminRoutes';
-import TenantRoutes from './pages/TenantRoutes';
 import AdminLogin from './components/admin/AdminLogin';
+import TenantRoutes from './pages/TenantRoutes';
 import TenantLogin from './components/public/TenantLogin';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -32,7 +32,6 @@ function App() {
         <div className="App">
           <Routes>
             <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/tenant/login" element={<TenantLogin />} />
             <Route
               path="/admin/*"
               element={(
@@ -41,6 +40,7 @@ function App() {
                 </RequireRole>
               )}
             />
+            <Route path="/tenant/login" element={<TenantLogin />} />
             <Route
               path="/tenant/*"
               element={(

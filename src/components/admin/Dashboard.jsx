@@ -42,19 +42,16 @@ const statusTone = (value) => {
 };
 
 function Dashboard() {
+  const isDbConfigured = Boolean(db);
   const [rooms, setRooms] = useState([]);
   const [payments, setPayments] = useState([]);
   const [dues, setDues] = useState([]);
   const [tenants, setTenants] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(Boolean(db));
+  const [runtimeError, setRuntimeError] = useState('');
 
   useEffect(() => {
-    if (!db) {
-      setError('Firestore is not configured. Add VITE_FIREBASE_* values first.');
-      setIsLoading(false);
-      return undefined;
-    }
+    if (!db) return undefined;
 
     const unsubRooms = onSnapshot(
       collection(db, 'rooms'),
@@ -62,7 +59,7 @@ function Dashboard() {
         setRooms(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
       },
       () => {
-        setError('Unable to load room metrics right now.');
+        setRuntimeError('Unable to load room metrics right now.');
       }
     );
 
@@ -72,7 +69,7 @@ function Dashboard() {
         setPayments(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
       },
       () => {
-        setError('Unable to load payment metrics right now.');
+        setRuntimeError('Unable to load payment metrics right now.');
       }
     );
 
@@ -82,7 +79,7 @@ function Dashboard() {
         setDues(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
       },
       () => {
-        setError('Unable to load due metrics right now.');
+        setRuntimeError('Unable to load due metrics right now.');
       }
     );
 
@@ -96,7 +93,7 @@ function Dashboard() {
         setIsLoading(false);
       },
       () => {
-        setError('Unable to load tenant metrics right now.');
+        setRuntimeError('Unable to load tenant metrics right now.');
         setIsLoading(false);
       }
     );
@@ -108,6 +105,10 @@ function Dashboard() {
       unsubUsers();
     };
   }, []);
+
+  const error = isDbConfigured
+    ? runtimeError
+    : 'Firestore is not configured. Add VITE_FIREBASE_* values first.';
 
   const { totalRooms, totalBeds, occupiedBeds, availableBeds, occupancyRate } = useMemo(() => {
     const roomCount = rooms.length;
@@ -553,3 +554,4 @@ function Dashboard() {
 }
 
 export default Dashboard;
+

@@ -10,6 +10,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
+import { Link } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import DataTable from '../common/DataTable';
 import Modal from '../common/Modal';
@@ -592,6 +593,19 @@ function TenantsManagement({ section = 'all' }) {
             && String(due.billingMonth || '').toLowerCase() === billingMonth.toLowerCase()
         );
 
+        const existingDueDate = formatDate(existingDue?.dueDate || '');
+        const dueDateChanged = existingDueDate && existingDueDate !== billingForm.dueDate;
+        const billingMonthChanged = existingDue
+          ? String(existingDue.billingMonth || '').toLowerCase() !== billingMonth.toLowerCase()
+          : false;
+
+        const normalizedExistingStatus = String(existingDue?.status || '').toLowerCase();
+        let nextStatus = dueDate.getTime() < Date.now() ? 'Overdue' : 'Pending';
+
+        if (normalizedExistingStatus === 'paid' && !dueDateChanged && !billingMonthChanged) {
+          nextStatus = 'Paid';
+        }
+
         const payload = {
           tenantUid: tenant.id,
           tenantEmail: tenant.email || '',
@@ -601,7 +615,7 @@ function TenantsManagement({ section = 'all' }) {
           monthlyRate,
           electricBill: electricBillPerTenant,
           amount,
-          status: existingDue?.status || 'Pending',
+          status: nextStatus,
           updatedAt: serverTimestamp(),
           updatedBy: user?.uid || null,
           updatedByEmail: user?.email || null,
@@ -672,26 +686,6 @@ function TenantsManagement({ section = 'all' }) {
       ),
     },
     { key: 'dueDate', label: 'Due Date' },
-    {
-      key: 'monthlyRateValue',
-      label: 'Monthly Rate',
-      render: (value) => formatAmount(value),
-    },
-    {
-      key: 'electricBillValue',
-      label: 'Electric Bill',
-      render: (value) => formatAmount(value),
-    },
-    { key: 'amount', label: 'Amount' },
-    {
-      key: 'paymentStatus',
-      label: 'Payment Status',
-      render: (status) => (
-        <StatusBadge status={status} type={String(status || '').toLowerCase().replace(' ', '-')} />
-      ),
-    },
-    { key: 'updatedBy', label: 'Updated By' },
-    { key: 'updatedAt', label: 'Updated At' },
   ];
 
   const tenantActions = [
@@ -700,18 +694,6 @@ function TenantsManagement({ section = 'all' }) {
       label: 'Edit Billing',
       variant: 'edit',
       onClick: (row) => handleOpenBillingModal(row),
-    },
-    {
-      icon: <CheckCircleIcon className="ui-icon" size={15} />,
-      label: 'Mark Paid',
-      variant: 'edit',
-      onClick: (row) => handleUpdateDueStatus(row, 'Paid'),
-    },
-    {
-      icon: <PulseIcon className="ui-icon" size={15} />,
-      label: 'Mark Pending',
-      variant: 'view',
-      onClick: (row) => handleUpdateDueStatus(row, 'Pending'),
     },
     {
       icon: <XCircleIcon className="ui-icon" size={15} />,
@@ -1113,6 +1095,10 @@ function TenantsManagement({ section = 'all' }) {
 
         {section !== 'create' && (
         <div className="tenants-overview-shell">
+        <div className="modal-actions" style={{ marginBottom: 12, justifyContent: 'flex-end' }}>
+          <Link to="/admin/tenants/create" className="btn-primary">Create Tenant Account</Link>
+        </div>
+
         <section className="users-stat-grid tenants-overview-stats">
           <article className="dashboard-surface users-stat-card">
             <span className="users-stat-icon"><UsersIcon className="ui-icon" size={18} /></span>
