@@ -42,31 +42,16 @@ const statusTone = (value) => {
 };
 
 function Dashboard() {
-<<<<<<< Updated upstream
-=======
   const isDbConfigured = Boolean(db);
->>>>>>> Stashed changes
   const [rooms, setRooms] = useState([]);
   const [payments, setPayments] = useState([]);
   const [dues, setDues] = useState([]);
   const [tenants, setTenants] = useState([]);
-<<<<<<< Updated upstream
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!db) {
-      setError('Firestore is not configured. Add VITE_FIREBASE_* values first.');
-      setIsLoading(false);
-      return undefined;
-    }
-=======
   const [isLoading, setIsLoading] = useState(Boolean(db));
   const [runtimeError, setRuntimeError] = useState('');
 
   useEffect(() => {
     if (!db) return undefined;
->>>>>>> Stashed changes
 
     const unsubRooms = onSnapshot(
       collection(db, 'rooms'),
@@ -74,11 +59,7 @@ function Dashboard() {
         setRooms(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
       },
       () => {
-<<<<<<< Updated upstream
-        setError('Unable to load room metrics right now.');
-=======
         setRuntimeError('Unable to load room metrics right now.');
->>>>>>> Stashed changes
       }
     );
 
@@ -88,11 +69,7 @@ function Dashboard() {
         setPayments(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
       },
       () => {
-<<<<<<< Updated upstream
-        setError('Unable to load payment metrics right now.');
-=======
         setRuntimeError('Unable to load payment metrics right now.');
->>>>>>> Stashed changes
       }
     );
 
@@ -102,11 +79,7 @@ function Dashboard() {
         setDues(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
       },
       () => {
-<<<<<<< Updated upstream
-        setError('Unable to load due metrics right now.');
-=======
         setRuntimeError('Unable to load due metrics right now.');
->>>>>>> Stashed changes
       }
     );
 
@@ -120,11 +93,7 @@ function Dashboard() {
         setIsLoading(false);
       },
       () => {
-<<<<<<< Updated upstream
-        setError('Unable to load tenant metrics right now.');
-=======
         setRuntimeError('Unable to load tenant metrics right now.');
->>>>>>> Stashed changes
         setIsLoading(false);
       }
     );
@@ -137,13 +106,10 @@ function Dashboard() {
     };
   }, []);
 
-<<<<<<< Updated upstream
-=======
   const error = isDbConfigured
     ? runtimeError
     : 'Firestore is not configured. Add VITE_FIREBASE_* values first.';
 
->>>>>>> Stashed changes
   const { totalRooms, totalBeds, occupiedBeds, availableBeds, occupancyRate } = useMemo(() => {
     const roomCount = rooms.length;
     const beds = rooms.reduce((sum, room) => sum + Number(room.capacity || 0), 0);
@@ -588,3 +554,4 @@ function Dashboard() {
 }
 
 export default Dashboard;
+

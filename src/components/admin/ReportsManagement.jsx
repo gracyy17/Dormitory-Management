@@ -17,25 +17,14 @@ const formatMonth = (value) => {
 };
 
 function ReportsManagement() {
-<<<<<<< Updated upstream
-=======
   const isDbConfigured = Boolean(db);
->>>>>>> Stashed changes
   const [rooms, setRooms] = useState([]);
   const [dues, setDues] = useState([]);
   const [payments, setPayments] = useState([]);
   const [users, setUsers] = useState([]);
-  const [error, setError] = useState('');
 
   useEffect(() => {
-<<<<<<< Updated upstream
-    if (!db) {
-      setError('Firestore is not configured.');
-      return undefined;
-    }
-=======
     if (!db) return undefined;
->>>>>>> Stashed changes
 
     const unsubRooms = onSnapshot(collection(db, 'rooms'), (snap) => setRooms(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
     const unsubDues = onSnapshot(collection(db, 'dues'), (snap) => setDues(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
@@ -50,11 +39,8 @@ function ReportsManagement() {
     };
   }, []);
 
-<<<<<<< Updated upstream
-=======
-  const displayError = isDbConfigured ? error : 'Firestore is not configured.';
+  const displayError = isDbConfigured ? '' : 'Firestore is not configured.';
 
->>>>>>> Stashed changes
   const reportCards = useMemo(() => {
     const totalBeds = rooms.reduce((sum, room) => sum + Number(room.capacity || 0), 0);
     const tenants = users.filter((user) => user.role === 'tenant').length;
@@ -168,11 +154,7 @@ function ReportsManagement() {
           <p className="page-subtitle">Financial and occupancy reports generated from live records.</p>
         </div>
 
-<<<<<<< Updated upstream
-        {error && <p className="admin-feedback is-error">{error}</p>}
-=======
         {displayError && <p className="admin-feedback is-error">{displayError}</p>}
->>>>>>> Stashed changes
 
         <section className="summary-section">
           <div className="cards-grid">
@@ -201,3 +183,4 @@ function ReportsManagement() {
 }
 
 export default ReportsManagement;
+

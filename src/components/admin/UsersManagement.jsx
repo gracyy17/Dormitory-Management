@@ -12,10 +12,7 @@ const formatDate = (value) => {
 };
 
 function UsersManagement() {
-<<<<<<< Updated upstream
-=======
   const isDbConfigured = Boolean(db);
->>>>>>> Stashed changes
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -23,14 +20,7 @@ function UsersManagement() {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-<<<<<<< Updated upstream
-    if (!db) {
-      setError('Firestore is not configured.');
-      return undefined;
-    }
-=======
     if (!db) return undefined;
->>>>>>> Stashed changes
 
     const unsubscribe = onSnapshot(
       collection(db, 'users'),
@@ -46,11 +36,8 @@ function UsersManagement() {
     return unsubscribe;
   }, []);
 
-<<<<<<< Updated upstream
-=======
   const displayError = isDbConfigured ? error : 'Firestore is not configured.';
 
->>>>>>> Stashed changes
   const userRows = useMemo(() => {
     return users.map((user) => ({
       id: user.id,
@@ -195,11 +182,7 @@ function UsersManagement() {
           </button>
         </section>
 
-<<<<<<< Updated upstream
-        {error && <p className="admin-feedback is-error">{error}</p>}
-=======
         {displayError && <p className="admin-feedback is-error">{displayError}</p>}
->>>>>>> Stashed changes
         {success && <p className="admin-feedback is-success">{success}</p>}
 
         <section className="dashboard-surface users-table-card">
@@ -269,3 +252,4 @@ function UsersManagement() {
 }
 
 export default UsersManagement;
+

@@ -28,7 +28,7 @@ const parseDate = (value) => {
 function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [lastSeenAt, setLastSeenAt] = useState(0);
+  const [seenVersion, setSeenVersion] = useState(0);
   const [payments, setPayments] = useState([]);
   const [dues, setDues] = useState([]);
   const [maintenanceRequests, setMaintenanceRequests] = useState([]);
@@ -40,10 +40,10 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
     [user?.uid]
   );
 
-  useEffect(() => {
+  const lastSeenAt = useMemo(() => {
     const saved = Number(window.localStorage.getItem(storageKey) || 0);
-    setLastSeenAt(Number.isNaN(saved) ? 0 : saved);
-  }, [storageKey]);
+    return Number.isNaN(saved) ? 0 : saved;
+  }, [storageKey, seenVersion]);
 
   useEffect(() => {
     if (!db) return undefined;
@@ -86,10 +86,7 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
   }, []);
 
   useEffect(() => {
-    if (!db || !user?.uid) {
-      setProfileName('');
-      return undefined;
-    }
+    if (!db || !user?.uid) return undefined;
 
     const unsubscribe = onSnapshot(
       doc(db, 'users', user.uid),
@@ -106,11 +103,6 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
   }, [user?.uid]);
 
   const notificationItems = useMemo(() => {
-<<<<<<< Updated upstream
-    const now = Date.now();
-
-=======
->>>>>>> Stashed changes
     const paymentItems = payments
       .filter((payment) => String(payment.status || '').toLowerCase() === 'pending')
       .map((payment) => ({
@@ -126,15 +118,7 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
     const dueItems = dues
       .filter((due) => {
         const status = String(due.status || '').toLowerCase();
-<<<<<<< Updated upstream
-        if (status === 'paid') return false;
-
-        const dueDate = parseDate(due.dueDate);
-        if (!dueDate) return status === 'pending' || status === 'overdue';
-        return dueDate.getTime() <= now || status === 'overdue';
-=======
         return status === 'pending' || status === 'overdue';
->>>>>>> Stashed changes
       })
       .map((due) => ({
         id: `due-${due.id}`,
@@ -211,8 +195,8 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
 
               if (nextOpen) {
                 const seenTime = Date.now();
-                setLastSeenAt(seenTime);
                 window.localStorage.setItem(storageKey, String(seenTime));
+                setSeenVersion((value) => value + 1);
               }
             }}
           >
@@ -298,3 +282,4 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
 }
 
 export default TopNavBar;
+
