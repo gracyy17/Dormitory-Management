@@ -676,18 +676,6 @@ function TenantsManagement({ section = 'all' }) {
       onClick: (row) => handleOpenBillingModal(row),
     },
     {
-      icon: <CheckCircleIcon className="ui-icon" size={15} />,
-      label: 'Mark Paid',
-      variant: 'edit',
-      onClick: (row) => handleUpdateDueStatus(row, 'Paid'),
-    },
-    {
-      icon: <PulseIcon className="ui-icon" size={15} />,
-      label: 'Mark Pending',
-      variant: 'view',
-      onClick: (row) => handleUpdateDueStatus(row, 'Pending'),
-    },
-    {
       icon: <XCircleIcon className="ui-icon" size={15} />,
       label: 'Mark Overdue',
       variant: 'delete',
