@@ -52,6 +52,20 @@ jobs:
             exit 1
           fi
 
+          malformed=()
+          [[ "${VITE_FIREBASE_API_KEY}" == FIREBASE_API_KEY=* || "${VITE_FIREBASE_API_KEY}" == VITE_FIREBASE_API_KEY=* ]] && malformed+=("FIREBASE_API_KEY")
+          [[ "${VITE_FIREBASE_AUTH_DOMAIN}" == FIREBASE_AUTH_DOMAIN=* || "${VITE_FIREBASE_AUTH_DOMAIN}" == VITE_FIREBASE_AUTH_DOMAIN=* ]] && malformed+=("FIREBASE_AUTH_DOMAIN")
+          [[ "${VITE_FIREBASE_PROJECT_ID}" == FIREBASE_PROJECT_ID=* || "${VITE_FIREBASE_PROJECT_ID}" == VITE_FIREBASE_PROJECT_ID=* ]] && malformed+=("FIREBASE_PROJECT_ID")
+          [[ "${VITE_FIREBASE_STORAGE_BUCKET}" == FIREBASE_STORAGE_BUCKET=* || "${VITE_FIREBASE_STORAGE_BUCKET}" == VITE_FIREBASE_STORAGE_BUCKET=* ]] && malformed+=("FIREBASE_STORAGE_BUCKET")
+          [[ "${VITE_FIREBASE_MESSAGING_SENDER_ID}" == FIREBASE_MESSAGING_SENDER_ID=* || "${VITE_FIREBASE_MESSAGING_SENDER_ID}" == VITE_FIREBASE_MESSAGING_SENDER_ID=* ]] && malformed+=("FIREBASE_MESSAGING_SENDER_ID")
+          [[ "${VITE_FIREBASE_APP_ID}" == FIREBASE_APP_ID=* || "${VITE_FIREBASE_APP_ID}" == VITE_FIREBASE_APP_ID=* ]] && malformed+=("FIREBASE_APP_ID")
+
+          if [ ${#malformed[@]} -gt 0 ]; then
+            echo "Malformed Firebase values detected for: ${malformed[*]}"
+            echo "Use only raw values in GitHub Secrets/Variables (no NAME= prefix)."
+            exit 1
+          fi
+
           echo "All required Firebase build secrets are present."
 
       - name: Run ESLint
@@ -102,6 +116,20 @@ jobs:
           if [ ${#missing[@]} -gt 0 ]; then
             echo "Missing required GitHub secrets: ${missing[*]}"
             echo "Add these in GitHub repo Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+          malformed=()
+          [[ "${VITE_FIREBASE_API_KEY}" == FIREBASE_API_KEY=* || "${VITE_FIREBASE_API_KEY}" == VITE_FIREBASE_API_KEY=* ]] && malformed+=("FIREBASE_API_KEY")
+          [[ "${VITE_FIREBASE_AUTH_DOMAIN}" == FIREBASE_AUTH_DOMAIN=* || "${VITE_FIREBASE_AUTH_DOMAIN}" == VITE_FIREBASE_AUTH_DOMAIN=* ]] && malformed+=("FIREBASE_AUTH_DOMAIN")
+          [[ "${VITE_FIREBASE_PROJECT_ID}" == FIREBASE_PROJECT_ID=* || "${VITE_FIREBASE_PROJECT_ID}" == VITE_FIREBASE_PROJECT_ID=* ]] && malformed+=("FIREBASE_PROJECT_ID")
+          [[ "${VITE_FIREBASE_STORAGE_BUCKET}" == FIREBASE_STORAGE_BUCKET=* || "${VITE_FIREBASE_STORAGE_BUCKET}" == VITE_FIREBASE_STORAGE_BUCKET=* ]] && malformed+=("FIREBASE_STORAGE_BUCKET")
+          [[ "${VITE_FIREBASE_MESSAGING_SENDER_ID}" == FIREBASE_MESSAGING_SENDER_ID=* || "${VITE_FIREBASE_MESSAGING_SENDER_ID}" == VITE_FIREBASE_MESSAGING_SENDER_ID=* ]] && malformed+=("FIREBASE_MESSAGING_SENDER_ID")
+          [[ "${VITE_FIREBASE_APP_ID}" == FIREBASE_APP_ID=* || "${VITE_FIREBASE_APP_ID}" == VITE_FIREBASE_APP_ID=* ]] && malformed+=("FIREBASE_APP_ID")
+
+          if [ ${#malformed[@]} -gt 0 ]; then
+            echo "Malformed Firebase values detected for: ${malformed[*]}"
+            echo "Use only raw values in GitHub Secrets/Variables (no NAME= prefix)."
             exit 1
           fi
 
