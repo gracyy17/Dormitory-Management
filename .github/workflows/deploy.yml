@@ -73,14 +73,41 @@ jobs:
         run: |
           set -euo pipefail
 
+          validate_service_account_json() {
+            local file_path="$1"
+            grep -q '"type"[[:space:]]*:[[:space:]]*"service_account"' "$file_path" \
+              && grep -q '"project_id"[[:space:]]*:[[:space:]]*"' "$file_path" \
+              && grep -q '"private_key"[[:space:]]*:[[:space:]]*"' "$file_path" \
+              && grep -q '"client_email"[[:space:]]*:[[:space:]]*"' "$file_path"
+          }
+
+          SERVICE_ACCOUNT_VALUE=""
+
           if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+            SERVICE_ACCOUNT_VALUE="$FIREBASE_SERVICE_ACCOUNT"
           elif [ -n "$FIREBASE_SERVICE_ACCOUNT_DORM_27FE2" ]; then
-            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_DORM_27FE2" > "$GOOGLE_APPLICATION_CREDENTIALS"
+            SERVICE_ACCOUNT_VALUE="$FIREBASE_SERVICE_ACCOUNT_DORM_27FE2"
           else
             echo "Missing Firebase service account secret. Add FIREBASE_SERVICE_ACCOUNT in GitHub Actions secrets."
             exit 1
           fi
+
+          printf '%s' "$SERVICE_ACCOUNT_VALUE" > "$GOOGLE_APPLICATION_CREDENTIALS"
+
+          if validate_service_account_json "$GOOGLE_APPLICATION_CREDENTIALS"; then
+            echo "Service account secret parsed as raw JSON."
+            exit 0
+          fi
+
+          if printf '%s' "$SERVICE_ACCOUNT_VALUE" | base64 --decode > "$GOOGLE_APPLICATION_CREDENTIALS" 2>/dev/null \
+            && validate_service_account_json "$GOOGLE_APPLICATION_CREDENTIALS"; then
+            echo "Service account secret parsed as base64 JSON."
+            exit 0
+          fi
+
+          echo "Invalid Firebase service account secret format."
+          echo "Set FIREBASE_SERVICE_ACCOUNT as either raw JSON or base64-encoded JSON for a service account key."
+          exit 1
 
       - name: Verify service account file
         run: |
