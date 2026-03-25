@@ -1,10 +1,34 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopNavBar from './TopNavBar';
+import LoadingState from '../common/LoadingState';
 import '../../styles/AdminDashboard.css';
 import { useAuth } from '../../context/AuthContext';
 
+function RouteLoadingGate({ children }) {
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsReady(true), 300);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (!isReady) {
+    return (
+      <LoadingState
+        title="Loading Admin Page"
+        message="Preparing dashboard data and widgets..."
+        skeletonRows={6}
+      />
+    );
+  }
+
+  return children;
+}
+
 function AdminLayout({ children }) {
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = window.localStorage.getItem('admin_dark_mode');
@@ -30,7 +54,7 @@ function AdminLayout({ children }) {
           onToggleTheme={toggleDarkMode}
         />
         <div className="admin-page-content">
-          {children}
+          <RouteLoadingGate key={location.pathname}>{children}</RouteLoadingGate>
         </div>
       </div>
     </div>

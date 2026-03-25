@@ -2,9 +2,31 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/TenantPortal.css';
+import LoadingState from '../common/LoadingState';
 import { CardIcon, PowerIcon, ShieldIcon, UserIcon, WrenchIcon } from '../common/LineIcons';
 import { db } from '../../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+
+function RouteLoadingGate({ children }) {
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsReady(true), 300);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (!isReady) {
+    return (
+      <LoadingState
+        title="Loading Tenant Page"
+        message="Preparing your portal details..."
+        skeletonRows={5}
+      />
+    );
+  }
+
+  return children;
+}
 
 function TenantLayout({ children }) {
   const location = useLocation();
@@ -117,7 +139,9 @@ function TenantLayout({ children }) {
         </button>
       </aside>
 
-      <main className="tenant-content">{children}</main>
+      <main className="tenant-content">
+        <RouteLoadingGate key={location.pathname}>{children}</RouteLoadingGate>
+      </main>
     </div>
   );
 }

@@ -473,45 +473,61 @@ function RoomsManagement() {
     };
   }, [roomElectricForm.roomNo, roomElectricForm.electricBillTotal, tenantUsers]);
 
-  const selectedRoomBedOccupants = useMemo(() => {
-    if (!selectedRoom) return [];
+  const tenantAssignmentsByRoom = useMemo(() => {
+    const grouped = {};
 
-    const capacity = Number(selectedRoom.capacity || 0);
-    if (capacity <= 0) return [];
+    tenantUsers.forEach((tenant) => {
+      const roomNo = String(tenant.roomNo || '').trim();
+      if (!roomNo) return;
 
-    const occupants = tenantUsers
-      .filter((tenant) => String(tenant.roomNo || '').trim() === String(selectedRoom.roomNo || '').trim())
-      .sort((a, b) => {
-        const bedA = Number(a.roomBed || 0);
-        const bedB = Number(b.roomBed || 0);
+      if (!grouped[roomNo]) grouped[roomNo] = [];
+      grouped[roomNo].push({
+        name: String(tenant.fullName || tenant.email || tenant.id || 'Occupied Bed'),
+        bedNumber: Number(tenant.roomBed || 0),
+      });
+    });
+
+    Object.keys(grouped).forEach((roomNo) => {
+      grouped[roomNo].sort((a, b) => {
+        const bedA = Number(a.bedNumber || 0);
+        const bedB = Number(b.bedNumber || 0);
         if (bedA && bedB) return bedA - bedB;
         if (bedA) return -1;
         if (bedB) return 1;
-        return String(a.fullName || a.email || '').localeCompare(String(b.fullName || b.email || ''));
+        return String(a.name || '').localeCompare(String(b.name || ''));
       });
+    });
 
-    const slots = Array.from({ length: capacity }, () => null);
+    return grouped;
+  }, [tenantUsers]);
+
+  const buildRoomBedSlots = (roomNo, capacity) => {
+    const roomCapacity = Number(capacity || 0);
+    if (roomCapacity <= 0) return [];
+
+    const assignments = tenantAssignmentsByRoom[String(roomNo || '').trim()] || [];
+    const slots = Array.from({ length: roomCapacity }, () => null);
     const unassigned = [];
 
-    occupants.forEach((tenant) => {
-      const tenantName = String(tenant.fullName || tenant.email || tenant.id || 'Occupied Bed');
-      const bedNumber = Number(tenant.roomBed || 0);
-
-      if (Number.isInteger(bedNumber) && bedNumber >= 1 && bedNumber <= capacity && !slots[bedNumber - 1]) {
-        slots[bedNumber - 1] = tenantName;
+    assignments.forEach((assignment) => {
+      const bedNumber = Number(assignment.bedNumber || 0);
+      if (Number.isInteger(bedNumber) && bedNumber >= 1 && bedNumber <= roomCapacity && !slots[bedNumber - 1]) {
+        slots[bedNumber - 1] = assignment.name;
       } else {
-        unassigned.push(tenantName);
+        unassigned.push(assignment.name);
       }
     });
 
     for (let i = 0; i < slots.length && unassigned.length > 0; i += 1) {
-      if (!slots[i]) {
-        slots[i] = unassigned.shift();
-      }
+      if (!slots[i]) slots[i] = unassigned.shift();
     }
 
     return slots;
-  }, [selectedRoom, tenantUsers]);
+  };
+
+  const selectedRoomBedOccupants = selectedRoom
+    ? buildRoomBedSlots(selectedRoom.roomNo, selectedRoom.capacity)
+    : [];
 
   const handleApplyRoomElectricSplit = async (event) => {
     event.preventDefault();
@@ -750,6 +766,8 @@ function RoomsManagement() {
             {selectedBuildingRooms.map((room) => {
               const capacity = Number(room.capacity || 0);
               const occupiedBeds = Number(room.occupiedBeds || 0);
+              const bedSlotsPreview = buildRoomBedSlots(room.roomNo, capacity);
+              const hasOccupants = bedSlotsPreview.some(Boolean);
               const availableBeds = Math.max(capacity - occupiedBeds, 0);
               const isFullyOccupied = occupiedBeds >= capacity && capacity > 0;
               const cardStatus = room.status === 'Maintenance' ? 'Maintenance' : (isFullyOccupied ? 'Occupied' : 'Available');
@@ -772,6 +790,15 @@ function RoomsManagement() {
                   <div className="room-card-stats">
                     <span>{room.occupancy}</span>
                     <span>{availabilityLabel}</span>
+                  </div>
+                  <div className="room-card-occupants">
+                    {hasOccupants ? (
+                      bedSlotsPreview.map((occupantName, idx) => (
+                        occupantName ? <span key={`${room.id}-bed-${idx + 1}`}>Bed {idx + 1}: {occupantName}</span> : null
+                      ))
+                    ) : (
+                      <span className="room-card-occupants-empty">No occupants yet</span>
+                    )}
                   </div>
                   <small>Tap to view Bed 1 to Bed {room.capacity}</small>
                 </button>
