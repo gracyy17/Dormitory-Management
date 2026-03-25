@@ -49,7 +49,6 @@ function TenantDues() {
   const [tenantName, setTenantName] = useState('');
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
-  const [hasManualCalendarNavigation, setHasManualCalendarNavigation] = useState(false);
   const paymongoCheckoutUrl = import.meta.env.VITE_PAYMONGO_CHECKOUT_URL;
   const gcashQrImageUrl = String(import.meta.env.VITE_GCASH_QR_IMAGE_URL || '').trim();
   const gcashQrPayload = String(import.meta.env.VITE_GCASH_QR_PAYLOAD || '').trim();
@@ -121,16 +120,16 @@ function TenantDues() {
     };
   }, [dueRows, currentDue]);
 
-  useEffect(() => {
-    if (hasManualCalendarNavigation) return;
-    if (!currentDue?.dueDateRaw) return;
+  const currentDueYear = currentDue?.dueDateRaw ? currentDue.dueDateRaw.getFullYear() : null;
+  const currentDueMonth = currentDue?.dueDateRaw ? currentDue.dueDateRaw.getMonth() : null;
 
-    setSelectedYear(currentDue.dueDateRaw.getFullYear());
-    setSelectedMonth(currentDue.dueDateRaw.getMonth());
-  }, [currentDue?.dueDateRaw, hasManualCalendarNavigation]);
+  useEffect(() => {
+    if (!Number.isInteger(currentDueYear) || !Number.isInteger(currentDueMonth)) return;
+    setSelectedYear(currentDueYear);
+    setSelectedMonth(currentDueMonth);
+  }, [currentDueMonth, currentDueYear]);
 
   const handlePreviousMonth = () => {
-    setHasManualCalendarNavigation(true);
     if (selectedMonth === 0) {
       setSelectedMonth(11);
       setSelectedYear((prev) => prev - 1);
@@ -140,7 +139,6 @@ function TenantDues() {
   };
 
   const handleNextMonth = () => {
-    setHasManualCalendarNavigation(true);
     if (selectedMonth === 11) {
       setSelectedMonth(0);
       setSelectedYear((prev) => prev + 1);

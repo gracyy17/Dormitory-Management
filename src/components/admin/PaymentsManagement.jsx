@@ -224,6 +224,14 @@ function PaymentsManagement() {
       });
   }, [dues, tenantNameByUid]);
 
+  const nextDueForCalendar = useMemo(() => {
+    const nextDue = monthlyDueRows.find((row) => row.status === 'Not Paid' || row.status === 'Overdue');
+    return nextDue || monthlyDueRows[0] || null;
+  }, [monthlyDueRows]);
+
+  const nextDueCalendarYear = nextDueForCalendar?.year;
+  const nextDueCalendarMonth = nextDueForCalendar?.month;
+
   const monthYearOptions = useMemo(() => buildMonthYearOptions(monthlyDueRows), [monthlyDueRows]);
 
   const yearOptions = useMemo(() => {
@@ -263,6 +271,12 @@ function PaymentsManagement() {
       setSelectedMonth(String(monthOptions[0].month));
     }
   }, [monthOptions, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    if (!Number.isInteger(nextDueCalendarYear) || !Number.isInteger(nextDueCalendarMonth)) return;
+    setSelectedYear(String(nextDueCalendarYear));
+    setSelectedMonth(String(nextDueCalendarMonth));
+  }, [nextDueCalendarMonth, nextDueCalendarYear]);
 
   const monthlyRows = useMemo(() => {
     return monthlyDueRows
