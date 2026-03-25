@@ -14,11 +14,18 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
+const inferredAppspotBucket = firebaseConfig.projectId ? `${firebaseConfig.projectId}.appspot.com` : '';
+const configuredStorageBucket = String(firebaseConfig.storageBucket || '').trim();
+const shouldUseAppspotAlias = configuredStorageBucket.endsWith('.firebasestorage.app') && Boolean(inferredAppspotBucket);
+const resolvedStorageBucket = shouldUseAppspotAlias
+  ? inferredAppspotBucket
+  : configuredStorageBucket || inferredAppspotBucket;
+
 const requiredFirebaseConfig = {
   apiKey: firebaseConfig.apiKey,
   authDomain: firebaseConfig.authDomain,
   projectId: firebaseConfig.projectId,
-  storageBucket: firebaseConfig.storageBucket,
+  storageBucket: resolvedStorageBucket,
   messagingSenderId: firebaseConfig.messagingSenderId,
   appId: firebaseConfig.appId,
 };
@@ -33,10 +40,13 @@ let storage = null;
 let analytics = null;
 
 if (isFirebaseConfigured) {
-  app = initializeApp(firebaseConfig);
+  app = initializeApp({
+    ...firebaseConfig,
+    storageBucket: resolvedStorageBucket,
+  });
   auth = getAuth(app);
   db = getFirestore(app);
-  storage = getStorage(app);
+  storage = getStorage(app, `gs://${resolvedStorageBucket}`);
 
   const hasMeasurementId = Boolean(firebaseConfig.measurementId);
   if (hasMeasurementId && typeof window !== 'undefined') {

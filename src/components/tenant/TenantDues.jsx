@@ -197,7 +197,7 @@ function TenantDues() {
       return;
     }
 
-    setPaymentStatus(`Redirecting to PayMongo (${paymentMethod}) for ${currentDue.month}...`);
+    setPaymentStatus(`Redirecting to PayMongo (${paymentMethod}) for ${currentDue.billingMonth}...`);
     window.location.assign(paymongoCheckoutUrl);
   };
 
@@ -241,8 +241,12 @@ function TenantDues() {
 
             await uploadBytes(receiptRef, receiptFile);
             receiptUrl = await getDownloadURL(receiptRef);
-          } catch {
-            uploadNote = 'Receipt upload failed. Using manual review evidence if provided.';
+          } catch (error) {
+            const code = typeof error?.code === 'string' ? error.code : '';
+            const isLikelyBucketConfigIssue = code.includes('storage/unknown') || code.includes('storage/unauthorized');
+            uploadNote = isLikelyBucketConfigIssue
+              ? 'Receipt upload failed. Firebase Storage bucket/config likely needs an update.'
+              : 'Receipt upload failed. Using manual review evidence if provided.';
           }
         } else {
           uploadNote = 'Storage upload unavailable on current Firebase plan.';
