@@ -49,10 +49,25 @@ function PaymentsManagement() {
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [reminderMessage, setReminderMessage] = useState('');
 
-  const reminderEndpoint = import.meta.env.VITE_SEND_DUE_REMINDERS_URL
-    || (import.meta.env.VITE_FIREBASE_PROJECT_ID
-      ? `https://asia-southeast1-${import.meta.env.VITE_FIREBASE_PROJECT_ID}.cloudfunctions.net/sendDueRemindersNow`
-      : '');
+  const reminderEndpoint = useMemo(() => {
+    const configuredEndpoint = String(import.meta.env.VITE_SEND_DUE_REMINDERS_URL || '').trim();
+    const projectId = String(import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim();
+    const fallbackEndpoint = projectId
+      ? `https://asia-southeast1-${projectId}.cloudfunctions.net/sendDueRemindersNow`
+      : '';
+
+    const isLocalConfiguredEndpoint = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(configuredEndpoint);
+    const isRunningLocally =
+      typeof window !== 'undefined'
+      && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+
+    // On deployed environments, ignore localhost endpoint values from local .env files.
+    if (!configuredEndpoint || (isLocalConfiguredEndpoint && !isRunningLocally)) {
+      return fallbackEndpoint;
+    }
+
+    return configuredEndpoint;
+  }, []);
 
   useEffect(() => {
     if (!db) {
