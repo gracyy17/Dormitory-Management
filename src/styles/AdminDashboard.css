@@ -497,6 +497,14 @@ body {
   transition: var(--transition);
 }
 
+.profile-btn.icon-only {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+}
+
 .profile-btn:hover {
   background-color: #e1eaf7;
 }

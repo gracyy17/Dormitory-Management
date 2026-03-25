@@ -7,6 +7,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
+import LoadingState from '../common/LoadingState';
 import StatusBadge from '../common/StatusBadge';
 import { auth, db } from '../../lib/firebase';
 import { LockIcon, MailIcon, UnlockIcon, UserIcon, UsersIcon, XCircleIcon } from '../common/LineIcons';
@@ -24,6 +25,7 @@ function UsersManagement() {
   const [roleFilter, setRoleFilter] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isUsersLoading, setIsUsersLoading] = useState(true);
 
   const deleteAccountEndpoints = useMemo(() => {
     const configured = String(import.meta.env.VITE_DELETE_USER_ACCOUNT_URL || '').trim();
@@ -54,9 +56,11 @@ function UsersManagement() {
       (snapshot) => {
         const records = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
         setUsers(records);
+        setIsUsersLoading(false);
       },
       () => {
         setError('Unable to load users right now.');
+        setIsUsersLoading(false);
       }
     );
 
@@ -281,6 +285,14 @@ function UsersManagement() {
 
         {displayError && <p className="admin-feedback is-error">{displayError}</p>}
         {success && <p className="admin-feedback is-success">{success}</p>}
+
+        {isUsersLoading && (
+          <LoadingState
+            title="Loading Users"
+            message="Fetching account records and access settings..."
+            skeletonRows={4}
+          />
+        )}
 
         <section className="dashboard-surface users-table-card">
           <div className="widget-header">

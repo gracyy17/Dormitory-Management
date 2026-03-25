@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
+import LoadingState from '../common/LoadingState';
 import { db } from '../../lib/firebase';
 import {
   CardIcon,
@@ -391,7 +392,13 @@ function Dashboard() {
           <p className="page-subtitle">Welcome back! Here's your dormitory overview.</p>
         </div>
 
-        {isLoading && <p>Loading dashboard...</p>}
+        {isLoading && (
+          <LoadingState
+            title="Loading Dashboard"
+            message="Collecting rooms, dues, tenants, and payment metrics..."
+            skeletonRows={4}
+          />
+        )}
         {error && <p style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</p>}
 
         <section className="dashboard-kpi-grid">

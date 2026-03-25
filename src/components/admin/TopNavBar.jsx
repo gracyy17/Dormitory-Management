@@ -220,14 +220,15 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
 
         <div className="profile-menu">
           <button
-            className="profile-btn"
+            className="profile-btn icon-only"
             onClick={() => {
               setShowProfile((prev) => !prev);
               setShowNotifications(false);
             }}
+            title="Account"
+            aria-label="Account"
           >
-            <ShieldIcon className="ui-icon" size={16} />
-            <span className="user-name">{identityLabel}</span>
+            <UserIcon className="ui-icon" size={16} />
           </button>
 
           {showProfile && (

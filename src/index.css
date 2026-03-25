@@ -80,6 +80,26 @@ input, select, textarea {
   gap: 2px;
 }
 
+.app-loading-skeleton {
+  margin-top: 6px;
+  display: grid;
+  gap: 6px;
+}
+
+.app-loading-skeleton-line {
+  display: block;
+  width: 72%;
+  height: 7px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #d7e6f7 0%, #bcd4ec 50%, #d7e6f7 100%);
+  background-size: 200% 100%;
+  animation: app-skeleton-wave 1.2s ease-in-out infinite;
+}
+
+.app-loading-skeleton-line.is-long {
+  width: 90%;
+}
+
 .app-loading-title {
   margin: 0;
   font-weight: 700;
@@ -129,6 +149,12 @@ input, select, textarea {
   background: linear-gradient(110deg, rgba(255, 255, 255, 0) 22%, rgba(126, 184, 242, 0.16) 45%, rgba(255, 255, 255, 0) 68%);
 }
 
+.admin-layout.dark-mode .app-loading-skeleton-line,
+.tenant-layout.is-dark .app-loading-skeleton-line {
+  background: linear-gradient(90deg, #2a425f 0%, #3e6087 50%, #2a425f 100%);
+  background-size: 200% 100%;
+}
+
 @keyframes app-spin {
   to {
     transform: rotate(360deg);
@@ -138,5 +164,14 @@ input, select, textarea {
 @keyframes app-shimmer {
   to {
     transform: translateX(100%);
+  }
+}
+
+@keyframes app-skeleton-wave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }
