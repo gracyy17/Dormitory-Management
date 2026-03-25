@@ -159,7 +159,12 @@ function TopNavBar({ onMenuToggle, isDarkMode, onToggleTheme }) {
           <MenuIcon className="ui-icon" size={18} />
         </button>
         <div className="search-box">
-          <input type="text" placeholder="Search rooms, tenants, payments..." />
+          <input
+            id="admin-global-search"
+            name="adminGlobalSearch"
+            type="text"
+            placeholder="Search rooms, tenants, payments..."
+          />
           <span className="search-icon"><SearchIcon className="ui-icon" size={16} /></span>
         </div>
       </div>

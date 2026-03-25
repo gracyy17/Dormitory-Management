@@ -13,6 +13,15 @@ const EMAIL_API_URL = process.env.EMAIL_API_URL || '';
 const EMAIL_API_KEY = process.env.EMAIL_API_KEY || '';
 const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@dormitory.local';
 
+function applyCorsHeaders(req, res) {
+  const origin = String(req.headers.origin || '*');
+  res.set('Access-Control-Allow-Origin', origin);
+  res.set('Vary', 'Origin');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.set('Access-Control-Max-Age', '3600');
+}
+
 function normalizeDate(value) {
   if (!value) return null;
   if (value.toDate) return value.toDate();
@@ -153,6 +162,13 @@ exports.sendDueRemindersNow = onRequest(
     cors: true,
   },
   async (req, res) => {
+    applyCorsHeaders(req, res);
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
     if (req.method !== 'POST') {
       res.status(405).json({ message: 'Method not allowed' });
       return;
@@ -191,6 +207,13 @@ exports.deleteUserAccountNow = onRequest(
     cors: true,
   },
   async (req, res) => {
+    applyCorsHeaders(req, res);
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
     if (req.method !== 'POST') {
       res.status(405).json({ message: 'Method not allowed' });
       return;
