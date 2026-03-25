@@ -175,6 +175,22 @@
   color: #25756d;
 }
 
+.tenant-theme-toggle {
+  height: 40px;
+  border: 1px solid #cad8ea;
+  border-radius: 10px;
+  background: #f3f8ff;
+  color: #2f4663;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.tenant-theme-toggle:hover {
+  border-color: #b7c9df;
+  background: #e6f2ff;
+}
+
 .tenant-content {
   margin-left: 232px;
   padding: 22px;
@@ -548,6 +564,32 @@
   margin: 2px 0 0;
   color: #5a6d86;
   font-size: 0.88rem;
+}
+
+.tenant-calendar-nav {
+  margin-top: 10px;
+}
+
+.tenant-month-next-btn {
+  border: 1px solid #9fc3ea;
+  border-radius: 10px;
+  background: #e8f2ff;
+  color: #1f3f64;
+  font-weight: 700;
+  min-height: 38px;
+  padding: 0 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tenant-month-next-btn:hover:not(:disabled) {
+  background: #dcedff;
+  border-color: #8cb3df;
+}
+
+.tenant-month-next-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .tenant-filter-bar {
@@ -1216,6 +1258,156 @@
 
 .tenant-form-success {
   color: #166534;
+}
+
+.tenant-layout.is-dark {
+  background: radial-gradient(circle at top right, #121a23 0%, #0f1620 42%, #0b1119 100%);
+  color: #dbe7f5;
+}
+
+.tenant-layout.is-dark .tenant-sidebar {
+  border-right-color: #253347;
+  background: linear-gradient(180deg, #101923 0%, #0c141d 100%);
+  box-shadow: inset -1px 0 0 #1c2a3a;
+}
+
+.tenant-layout.is-dark .tenant-sidebar-brand,
+.tenant-layout.is-dark .tenant-sidebar-header {
+  border-bottom-color: #223043;
+}
+
+.tenant-layout.is-dark .tenant-sidebar-brand h2,
+.tenant-layout.is-dark .tenant-user-name,
+.tenant-layout.is-dark .tenant-page-header h1,
+.tenant-layout.is-dark .tenant-panel-header h2,
+.tenant-layout.is-dark .tenant-payment-header h3,
+.tenant-layout.is-dark .tenant-gcash-title,
+.tenant-layout.is-dark .tenant-summary-card p {
+  color: #e8f1ff;
+}
+
+.tenant-layout.is-dark .tenant-page-header p,
+.tenant-layout.is-dark .tenant-panel-header p,
+.tenant-layout.is-dark .tenant-payment-header p,
+.tenant-layout.is-dark .tenant-gcash-help,
+.tenant-layout.is-dark .tenant-calendar-entries .calendar-empty-note,
+.tenant-layout.is-dark .tenant-role-badge,
+.tenant-layout.is-dark .tenant-method-btn small,
+.tenant-layout.is-dark .tenant-file-row span {
+  color: #a9bfd9;
+}
+
+.tenant-layout.is-dark .tenant-page-kicker {
+  background: #172231;
+  border-color: #2a3d55;
+  color: #9ec0e8;
+}
+
+.tenant-layout.is-dark .tenant-content {
+  background: transparent;
+}
+
+.tenant-layout.is-dark .tenant-nav-link,
+.tenant-layout.is-dark .tenant-logout,
+.tenant-layout.is-dark .tenant-theme-toggle {
+  border-color: #2b3b4f;
+  background: #162231;
+  color: #d3e4f7;
+}
+
+.tenant-layout.is-dark .tenant-nav-link:hover,
+.tenant-layout.is-dark .tenant-logout:hover,
+.tenant-layout.is-dark .tenant-theme-toggle:hover {
+  border-color: #39526d;
+  background: #1c2d42;
+}
+
+.tenant-layout.is-dark .tenant-nav-link.active {
+  border-color: #2f7f7a;
+  background: linear-gradient(180deg, #1f4442 0%, #183735 100%);
+  color: #9ce7df;
+  box-shadow: 0 0 0 3px rgba(74, 163, 155, 0.2);
+}
+
+.tenant-layout.is-dark .tenant-summary-card,
+.tenant-layout.is-dark .tenant-payment-card,
+.tenant-layout.is-dark .tenant-table-wrap,
+.tenant-layout.is-dark .tenant-profile-card,
+.tenant-layout.is-dark .tenant-callout,
+.tenant-layout.is-dark .tenant-maintenance-form,
+.tenant-layout.is-dark .tenant-password-form,
+.tenant-layout.is-dark .tenant-gcash-preview-pane,
+.tenant-layout.is-dark .tenant-gcash-form-pane,
+.tenant-layout.is-dark .tenant-calendar-cell,
+.tenant-layout.is-dark .tenant-history-empty,
+.tenant-layout.is-dark .tenant-maintenance-upload {
+  border-color: #2a3a4f;
+  background: #131f2d;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+.tenant-layout.is-dark .tenant-calendar-cell.is-empty,
+.tenant-layout.is-dark .tenant-simple-table th {
+  background: #172536;
+}
+
+.tenant-layout.is-dark .tenant-calendar-day,
+.tenant-layout.is-dark .tenant-simple-table td,
+.tenant-layout.is-dark .tenant-simple-table th,
+.tenant-layout.is-dark .tenant-calendar-head span,
+.tenant-layout.is-dark .tenant-calendar-entries .calendar-entry-name,
+.tenant-layout.is-dark .tenant-profile-card p,
+.tenant-layout.is-dark .tenant-profile-meta p,
+.tenant-layout.is-dark .tenant-profile-meta label {
+  color: #d7e6f8;
+}
+
+.tenant-layout.is-dark .tenant-calendar-entries .calendar-entry {
+  border-color: #31465f;
+  background: #1b2a3c;
+}
+
+.tenant-layout.is-dark .tenant-gcash-due-meta span,
+.tenant-layout.is-dark .tenant-payment-status,
+.tenant-layout.is-dark .tenant-maintenance-category-badge,
+.tenant-layout.is-dark .tenant-file-button {
+  border-color: #31465f;
+  background: #1b2a3c;
+  color: #cfe1f6;
+}
+
+.tenant-layout.is-dark .tenant-gcash-form-col input[type='text'],
+.tenant-layout.is-dark .tenant-gcash-form-col input[type='url'],
+.tenant-layout.is-dark .tenant-receipt-form input,
+.tenant-layout.is-dark .tenant-maintenance-form textarea,
+.tenant-layout.is-dark .tenant-maintenance-form select,
+.tenant-layout.is-dark .tenant-form-group input,
+.tenant-layout.is-dark .tenant-filter-bar select {
+  border-color: #38516d;
+  background: #0e1824;
+  color: #dbe8f8;
+}
+
+.tenant-layout.is-dark .tenant-upload-btn,
+.tenant-layout.is-dark .tenant-month-next-btn {
+  border-color: #3a5674;
+  background: #1c2d42;
+  color: #d4e4f6;
+}
+
+.tenant-layout.is-dark .tenant-month-next-btn:hover:not(:disabled) {
+  background: #233851;
+  border-color: #456388;
+}
+
+.tenant-layout.is-dark .tenant-simple-table th,
+.tenant-layout.is-dark .tenant-simple-table td,
+.tenant-layout.is-dark .tenant-maintenance-history-table thead th,
+.tenant-layout.is-dark .tenant-maintenance-history-table tbody tr,
+.tenant-layout.is-dark .tenant-calendar-entries .calendar-entry,
+.tenant-layout.is-dark .tenant-calendar-cell,
+.tenant-layout.is-dark .tenant-history-empty {
+  border-color: #2d4058;
 }
 
 @media (max-width: 1100px) {

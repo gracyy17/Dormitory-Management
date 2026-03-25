@@ -33,8 +33,7 @@ function TenantDues() {
   const [tenantProfileImageUrl, setTenantProfileImageUrl] = useState('');
   const [tenantRoomNo, setTenantRoomNo] = useState('');
   const [tenantName, setTenantName] = useState('');
-  const [selectedYear, setSelectedYear] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedMonthKey, setSelectedMonthKey] = useState('');
   const paymongoCheckoutUrl = import.meta.env.VITE_PAYMONGO_CHECKOUT_URL;
   const gcashQrImageUrl = String(import.meta.env.VITE_GCASH_QR_IMAGE_URL || '').trim();
   const gcashQrPayload = String(import.meta.env.VITE_GCASH_QR_PAYLOAD || '').trim();
@@ -108,49 +107,52 @@ function TenantDues() {
 
   const monthYearOptions = useMemo(() => buildMonthYearOptions(dueRows), [dueRows]);
 
-  const yearOptions = useMemo(() => {
-    const years = new Set(monthYearOptions.map((item) => item.year));
-    return Array.from(years).sort((a, b) => b - a);
+  const calendarMonthOptions = useMemo(() => {
+    return [...monthYearOptions].sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
   }, [monthYearOptions]);
 
-  const monthOptions = useMemo(() => {
-    if (!selectedYear) return [];
-    return monthYearOptions
-      .filter((item) => String(item.year) === selectedYear)
-      .sort((a, b) => a.month - b.month);
-  }, [monthYearOptions, selectedYear]);
-
   useEffect(() => {
-    if (!monthYearOptions.length) {
-      setSelectedYear('');
-      setSelectedMonth('');
+    if (!calendarMonthOptions.length) {
+      setSelectedMonthKey('');
       return;
     }
 
-    const hasValidSelection = monthYearOptions.some(
-      (item) => String(item.year) === selectedYear && String(item.month) === selectedMonth
-    );
-
+    const hasValidSelection = calendarMonthOptions.some((item) => item.key === selectedMonthKey);
     if (!hasValidSelection) {
-      setSelectedYear(String(monthYearOptions[0].year));
-      setSelectedMonth(String(monthYearOptions[0].month));
+      setSelectedMonthKey(calendarMonthOptions[0].key);
     }
-  }, [monthYearOptions, selectedMonth, selectedYear]);
+  }, [calendarMonthOptions, selectedMonthKey]);
 
-  useEffect(() => {
-    if (!selectedYear || !monthOptions.length) return;
-    const hasMonth = monthOptions.some((item) => String(item.month) === selectedMonth);
-    if (!hasMonth) {
-      setSelectedMonth(String(monthOptions[0].month));
+  const selectedMonthOption = useMemo(() => {
+    return calendarMonthOptions.find((item) => item.key === selectedMonthKey) || null;
+  }, [calendarMonthOptions, selectedMonthKey]);
+
+  const selectedMonthIndex = useMemo(() => {
+    return calendarMonthOptions.findIndex((item) => item.key === selectedMonthKey);
+  }, [calendarMonthOptions, selectedMonthKey]);
+
+  const canGoToNextMonth = selectedMonthIndex >= 0 && selectedMonthIndex < calendarMonthOptions.length - 1;
+
+  const handleNextMonth = () => {
+    if (!canGoToNextMonth) return;
+    const nextOption = calendarMonthOptions[selectedMonthIndex + 1];
+    if (nextOption) {
+      setSelectedMonthKey(nextOption.key);
     }
-  }, [monthOptions, selectedMonth, selectedYear]);
+  };
 
   const monthlyDueRows = useMemo(() => {
-    return dueRows.filter((row) => String(row.year) === selectedYear && String(row.month) === selectedMonth);
-  }, [dueRows, selectedMonth, selectedYear]);
+    if (!selectedMonthOption) return [];
+    return dueRows.filter(
+      (row) => row.year === selectedMonthOption.year && row.month === selectedMonthOption.month
+    );
+  }, [dueRows, selectedMonthOption]);
 
-  const selectedYearNumber = Number(selectedYear);
-  const selectedMonthNumber = Number(selectedMonth);
+  const selectedYearNumber = selectedMonthOption?.year;
+  const selectedMonthNumber = selectedMonthOption?.month;
 
   const calendarWeeks = useMemo(() => {
     if (!Number.isInteger(selectedYearNumber) || !Number.isInteger(selectedMonthNumber)) {
@@ -196,11 +198,8 @@ function TenantDues() {
   }, [monthlyDueRows]);
 
   const selectedLabel = useMemo(() => {
-    const option = monthYearOptions.find(
-      (item) => String(item.year) === selectedYear && String(item.month) === selectedMonth
-    );
-    return option?.label || 'No month selected';
-  }, [monthYearOptions, selectedMonth, selectedYear]);
+    return selectedMonthOption?.label || 'No month selected';
+  }, [selectedMonthOption]);
 
   useEffect(() => {
     if (!db || !user?.uid) {
@@ -675,32 +674,6 @@ function TenantDues() {
           <p>Review your selected month and year dues status.</p>
         </div>
 
-        <div className="tenant-filter-bar">
-          <label htmlFor="tenant-year-select">Year</label>
-          <select
-            id="tenant-year-select"
-            value={selectedYear}
-            onChange={(event) => setSelectedYear(event.target.value)}
-          >
-            {yearOptions.map((year) => (
-              <option key={year} value={String(year)}>{year}</option>
-            ))}
-          </select>
-
-          <label htmlFor="tenant-month-select">Month</label>
-          <select
-            id="tenant-month-select"
-            value={selectedMonth}
-            onChange={(event) => setSelectedMonth(event.target.value)}
-          >
-            {monthOptions.map((monthOption) => (
-              <option key={monthOption.key} value={String(monthOption.month)}>
-                {monthOption.monthLabel}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div className="tenant-month-summary">
           <span className="summary-pill paid">Paid: {monthlyCounts.paid}</span>
           <span className="summary-pill not-paid">Not Paid: {monthlyCounts.notPaid}</span>
@@ -738,6 +711,16 @@ function TenantDues() {
         <div className="tenant-panel-header">
           <h2>Calendar View - {selectedLabel}</h2>
           <p>Per-day due list with your payment status.</p>
+          <div className="tenant-calendar-nav">
+            <button
+              type="button"
+              className="tenant-month-next-btn"
+              onClick={handleNextMonth}
+              disabled={!canGoToNextMonth}
+            >
+              Next Month
+            </button>
+          </div>
         </div>
 
         {calendarWeeks.length === 0 ? (

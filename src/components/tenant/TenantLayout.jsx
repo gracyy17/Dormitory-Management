@@ -11,6 +11,10 @@ function TenantLayout({ children }) {
   const { user, logout } = useAuth();
   const [tenantName, setTenantName] = useState('Tenant');
   const [tenantPhotoUrl, setTenantPhotoUrl] = useState('');
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('tenantPortalTheme') === 'dark';
+  });
 
   useEffect(() => {
     const loadTenantName = async () => {
@@ -46,6 +50,11 @@ function TenantLayout({ children }) {
 
   const tenantRoleLabel = useMemo(() => 'Tenant', []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('tenantPortalTheme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
   const items = [
     { to: '/tenant/dues', label: 'Dues', icon: <CardIcon className="ui-icon" size={17} /> },
     { to: '/tenant/maintenance', label: 'Maintenance', icon: <WrenchIcon className="ui-icon" size={17} /> },
@@ -53,7 +62,7 @@ function TenantLayout({ children }) {
   ];
 
   return (
-    <div className="tenant-layout">
+    <div className={`tenant-layout${isDarkMode ? ' is-dark' : ''}`}>
       <aside className="tenant-sidebar">
         <div className="tenant-sidebar-brand">
           <div className="tenant-brand-mark" aria-hidden="true">
@@ -94,6 +103,14 @@ function TenantLayout({ children }) {
             </Link>
           ))}
         </nav>
+
+        <button
+          type="button"
+          className="tenant-theme-toggle"
+          onClick={() => setIsDarkMode((prev) => !prev)}
+        >
+          {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+        </button>
 
         <button className="tenant-logout" onClick={logout}>
           <PowerIcon className="ui-icon" size={18} />
