@@ -1,14 +1,31 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { collection, doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
 import StatusBadge from '../common/StatusBadge';
 import { db } from '../../lib/firebase';
-import { LockIcon, MailIcon, UnlockIcon, UserIcon, UsersIcon } from '../common/LineIcons';
+import { LockIcon, MailIcon, UnlockIcon, UserIcon, UsersIcon, XCircleIcon } from '../common/LineIcons';
 
 const formatDate = (value) => {
   if (!value) return '-';
   if (typeof value?.toDate === 'function') return value.toDate().toISOString().slice(0, 10);
   return String(value).slice(0, 10);
+};
+
+const normalizeRoomStatus = (status, occupiedBeds, capacity) => {
+  if (status === 'Maintenance') return 'Maintenance';
+  if (occupiedBeds <= 0) return 'Available';
+  if (occupiedBeds >= capacity) return 'Occupied';
+  return 'Available';
 };
 
 function UsersManagement() {
@@ -99,6 +116,56 @@ function UsersManagement() {
       );
     } catch {
       setError('Unable to update reminder setting right now.');
+    }
+  };
+
+  const handleDeleteAccount = async (row) => {
+    if (!db) return;
+
+    const shouldDelete = window.confirm(
+      `Delete account ${row.email}? This will also remove related dues and payment records.`
+    );
+    if (!shouldDelete) return;
+
+    setError('');
+    setSuccess('');
+
+    try {
+      if (String(row.role || '').toLowerCase() === 'tenant') {
+        const duesQuery = query(collection(db, 'dues'), where('tenantUid', '==', row.id));
+        const duesSnapshot = await getDocs(duesQuery);
+        for (const dueDoc of duesSnapshot.docs) {
+          await deleteDoc(doc(db, 'dues', dueDoc.id));
+        }
+
+        const paymentsQuery = query(collection(db, 'payments'), where('tenantUid', '==', row.id));
+        const paymentsSnapshot = await getDocs(paymentsQuery);
+        for (const paymentDoc of paymentsSnapshot.docs) {
+          await deleteDoc(doc(db, 'payments', paymentDoc.id));
+        }
+
+        if (row.roomNo && row.roomNo !== '-') {
+          const roomsQuery = query(collection(db, 'rooms'), where('roomNo', '==', row.roomNo));
+          const roomsSnapshot = await getDocs(roomsQuery);
+
+          for (const roomDoc of roomsSnapshot.docs) {
+            const roomData = roomDoc.data() || {};
+            const capacity = Number(roomData.capacity || 0);
+            const occupiedBeds = Math.max(0, Number(roomData.occupiedBeds || 0) - 1);
+
+            await updateDoc(doc(db, 'rooms', roomDoc.id), {
+              occupiedBeds,
+              status: normalizeRoomStatus(String(roomData.status || ''), occupiedBeds, capacity),
+              updatedAt: serverTimestamp(),
+            });
+          }
+        }
+      }
+
+      await deleteDoc(doc(db, 'users', row.id));
+      setSuccess(`Deleted account ${row.email}.`);
+    } catch {
+      setError('Unable to delete account right now.');
     }
   };
 
@@ -236,6 +303,13 @@ function UsersManagement() {
                           title="Toggle reminder"
                         >
                           <MailIcon className="ui-icon" size={14} />
+                        </button>
+                        <button
+                          className="users-action-btn is-danger"
+                          onClick={() => handleDeleteAccount(row)}
+                          title="Delete account"
+                        >
+                          <XCircleIcon className="ui-icon" size={14} />
                         </button>
                       </div>
                     </td>

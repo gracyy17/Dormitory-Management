@@ -2691,6 +2691,10 @@ body {
   color: #334155;
 }
 
+.users-action-btn.is-danger {
+  color: #b91c1c;
+}
+
 .admin-layout.dark-mode .users-stat-icon {
   background: #213249;
   color: #c9daef;
