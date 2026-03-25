@@ -37,6 +37,45 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check optional frontend env vars
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          [ -n "${VITE_CLOUDINARY_CLOUD_NAME:-}" ] && echo "VITE_CLOUDINARY_CLOUD_NAME is set." || echo "WARNING: VITE_CLOUDINARY_CLOUD_NAME is empty."
+          [ -n "${VITE_CLOUDINARY_UPLOAD_PRESET:-}" ] && echo "VITE_CLOUDINARY_UPLOAD_PRESET is set." || echo "WARNING: VITE_CLOUDINARY_UPLOAD_PRESET is empty."
+          [ -n "${VITE_GCASH_QR_PAYLOAD:-}" ] && echo "VITE_GCASH_QR_PAYLOAD is set." || echo "WARNING: VITE_GCASH_QR_PAYLOAD is empty."
+          [ -n "${VITE_GCASH_QR_IMAGE_URL:-}" ] && echo "VITE_GCASH_QR_IMAGE_URL is set." || echo "INFO: VITE_GCASH_QR_IMAGE_URL is empty (payload mode can still work)."
+
+      - name: Run dev server smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/vite-dev.log 2>&1 &
+          DEV_PID=$!
+
+          cleanup() {
+            if kill -0 "$DEV_PID" 2>/dev/null; then
+              kill "$DEV_PID" 2>/dev/null || true
+              wait "$DEV_PID" 2>/dev/null || true
+            fi
+          }
+
+          trap cleanup EXIT
+
+          for _ in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173 >/dev/null; then
+              echo "Vite dev server responded successfully."
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "Vite dev server failed to respond within timeout."
+          cat /tmp/vite-dev.log || true
+          exit 1
+
       - name: Validate Firebase build secrets
         shell: bash
         run: |
