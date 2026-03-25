@@ -317,7 +317,7 @@ function PaymentsManagement() {
         </div>
       ),
     },
-    { key: 'billingMonth', label: 'Billing Month' },
+    { key: 'dueDate', label: 'Due Date' },
     { key: 'amount', label: 'Amount' },
     { key: 'method', label: 'Method' },
     { key: 'referenceNumber', label: 'Reference No.' },
