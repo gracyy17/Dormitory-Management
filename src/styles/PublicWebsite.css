@@ -262,6 +262,12 @@
   padding: 18px;
 }
 
+.about-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .essential-info {
   border: 1px solid var(--public-border);
   border-radius: 12px;
@@ -573,6 +579,10 @@
 @media (max-width: 980px) {
   .hero,
   .section-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .about-mini-grid {
     grid-template-columns: 1fr;
   }
 

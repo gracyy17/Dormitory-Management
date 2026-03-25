@@ -97,13 +97,29 @@ function HomePage() {
         <section className="section about-frame glass-panel reveal-up delay-3">
           <div className="section-head">
             <h2>About Us</h2>
-            <p>
-              MZ Dormitory provides student-friendly living spaces built for comfort, safety, and focused daily routines.
-            </p>
+            <p>Student-focused dorm living with comfort, discipline, and secure daily routines.</p>
           </div>
-          <div className="essential-info">
-            <p>Essential Info</p>
-            <strong>Nearest Landmark: [Placeholder]</strong>
+          <div className="about-mini-grid">
+            <div className="essential-info">
+              <p>Story</p>
+              <strong>Built to give students a safe, reliable place near school.</strong>
+            </div>
+            <div className="essential-info">
+              <p>Mission and Values</p>
+              <strong>Safety, discipline, and student-first service in every stay.</strong>
+            </div>
+            <div className="essential-info">
+              <p>Admin Note</p>
+              <strong>Welcome home, we are here to support your student journey.</strong>
+            </div>
+            <div className="essential-info">
+              <p>Safety Commitment</p>
+              <strong>We actively enforce secure access and a peaceful environment.</strong>
+            </div>
+            <div className="essential-info">
+              <p>Why Choose Us</p>
+              <strong>Balanced rooms, responsive support, and a study-friendly community.</strong>
+            </div>
           </div>
         </section>
 
