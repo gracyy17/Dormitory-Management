@@ -1106,6 +1106,28 @@ body {
   border-color: #24344b;
 }
 
+.admin-layout.dark-mode .modal-header,
+.admin-layout.dark-mode .modal-actions {
+  border-color: #24344b;
+}
+
+.admin-layout.dark-mode .modal-title {
+  color: #e7f0ff;
+}
+
+.admin-layout.dark-mode .modal-close {
+  color: #c8d7eb;
+}
+
+.admin-layout.dark-mode .modal-close:hover {
+  background-color: #1e2e44;
+  color: #f2f7ff;
+}
+
+.admin-layout.dark-mode .modal-body {
+  color: #d3e1f4;
+}
+
 .admin-layout.dark-mode .dashboard-pill.is-positive {
   background: #123428;
   color: #87e3b9;

@@ -472,6 +472,46 @@ function RoomsManagement() {
     };
   }, [roomElectricForm.roomNo, roomElectricForm.electricBillTotal, tenantUsers]);
 
+  const selectedRoomBedOccupants = useMemo(() => {
+    if (!selectedRoom) return [];
+
+    const capacity = Number(selectedRoom.capacity || 0);
+    if (capacity <= 0) return [];
+
+    const occupants = tenantUsers
+      .filter((tenant) => String(tenant.roomNo || '').trim() === String(selectedRoom.roomNo || '').trim())
+      .sort((a, b) => {
+        const bedA = Number(a.roomBed || 0);
+        const bedB = Number(b.roomBed || 0);
+        if (bedA && bedB) return bedA - bedB;
+        if (bedA) return -1;
+        if (bedB) return 1;
+        return String(a.fullName || a.email || '').localeCompare(String(b.fullName || b.email || ''));
+      });
+
+    const slots = Array.from({ length: capacity }, () => null);
+    const unassigned = [];
+
+    occupants.forEach((tenant) => {
+      const tenantName = String(tenant.fullName || tenant.email || tenant.id || 'Occupied Bed');
+      const bedNumber = Number(tenant.roomBed || 0);
+
+      if (Number.isInteger(bedNumber) && bedNumber >= 1 && bedNumber <= capacity && !slots[bedNumber - 1]) {
+        slots[bedNumber - 1] = tenantName;
+      } else {
+        unassigned.push(tenantName);
+      }
+    });
+
+    for (let i = 0; i < slots.length && unassigned.length > 0; i += 1) {
+      if (!slots[i]) {
+        slots[i] = unassigned.shift();
+      }
+    }
+
+    return slots;
+  }, [selectedRoom, tenantUsers]);
+
   const handleApplyRoomElectricSplit = async (event) => {
     event.preventDefault();
 
@@ -797,19 +837,24 @@ function RoomsManagement() {
               <div className="beds-section">
                 <h3>Bed Slots</h3>
                 <div className="beds-grid">
-                  {Array.from({ length: Number(selectedRoom.capacity || 0) }).map((_, idx) => (
-                    <div key={idx} className={`bed-slot ${idx < Number(selectedRoom.occupiedBeds || 0) ? 'occupied' : 'empty'}`}>
+                  {Array.from({ length: Number(selectedRoom.capacity || 0) }).map((_, idx) => {
+                    const occupantName = selectedRoomBedOccupants[idx];
+                    const isOccupied = Boolean(occupantName);
+
+                    return (
+                    <div key={idx} className={`bed-slot ${isOccupied ? 'occupied' : 'empty'}`}>
                       <div className="bed-number">Bed {idx + 1}</div>
-                      {idx < Number(selectedRoom.occupiedBeds || 0) ? (
+                      {isOccupied ? (
                         <div className="bed-tenant">
-                          <p className="tenant-name">Occupied Bed</p>
+                          <p className="tenant-name">{occupantName}</p>
                           <p className="bed-status">Occupied</p>
                         </div>
                       ) : (
                         <p className="bed-status">Available</p>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

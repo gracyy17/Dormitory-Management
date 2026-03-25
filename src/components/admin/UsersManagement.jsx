@@ -2,12 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   collection,
   doc,
-  getDocs,
   onSnapshot,
-  query,
   serverTimestamp,
   updateDoc,
-  where,
 } from 'firebase/firestore';
 import AdminLayout from './AdminLayout';
 import StatusBadge from '../common/StatusBadge';
@@ -20,13 +17,6 @@ const formatDate = (value) => {
   return String(value).slice(0, 10);
 };
 
-const normalizeRoomStatus = (status, occupiedBeds, capacity) => {
-  if (status === 'Maintenance') return 'Maintenance';
-  if (occupiedBeds <= 0) return 'Available';
-  if (occupiedBeds >= capacity) return 'Occupied';
-  return 'Available';
-};
-
 function UsersManagement() {
   const isDbConfigured = Boolean(db);
   const [users, setUsers] = useState([]);
@@ -34,6 +24,25 @@ function UsersManagement() {
   const [roleFilter, setRoleFilter] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const deleteAccountEndpoint = useMemo(() => {
+    const configured = String(import.meta.env.VITE_DELETE_USER_ACCOUNT_URL || '').trim();
+    const projectId = String(import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim();
+    const fallback = projectId
+      ? `https://asia-southeast1-${projectId}.cloudfunctions.net/deleteUserAccountNow`
+      : '';
+
+    const isLocalConfiguredEndpoint = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(configured);
+    const isRunningLocally =
+      typeof window !== 'undefined'
+      && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+
+    if (!configured || (isLocalConfiguredEndpoint && !isRunningLocally)) {
+      return fallback;
+    }
+
+    return configured;
+  }, []);
 
   useEffect(() => {
     if (!db) return undefined;
@@ -127,7 +136,7 @@ function UsersManagement() {
     }
 
     const shouldDelete = window.confirm(
-      `Archive account ${row.email}? This will remove the tenant from active lists and release the room slot.`
+      `Permanently delete account ${row.email}? This action cannot be undone.`
     );
     if (!shouldDelete) return;
 
@@ -135,49 +144,35 @@ function UsersManagement() {
     setSuccess('');
 
     try {
-      if (String(row.role || '').toLowerCase() === 'tenant') {
-        const duesQuery = query(collection(db, 'dues'), where('tenantUid', '==', row.id));
-        const duesSnapshot = await getDocs(duesQuery);
-        for (const dueDoc of duesSnapshot.docs) {
-          await updateDoc(doc(db, 'dues', dueDoc.id), {
-            status: 'Archived',
-            updatedAt: serverTimestamp(),
-            updatedBy: auth.currentUser?.uid || null,
-          });
-        }
-
-        if (row.roomNo && row.roomNo !== '-') {
-          const roomsQuery = query(collection(db, 'rooms'), where('roomNo', '==', row.roomNo));
-          const roomsSnapshot = await getDocs(roomsQuery);
-
-          for (const roomDoc of roomsSnapshot.docs) {
-            const roomData = roomDoc.data() || {};
-            const capacity = Number(roomData.capacity || 0);
-            const occupiedBeds = Math.max(0, Number(roomData.occupiedBeds || 0) - 1);
-
-            await updateDoc(doc(db, 'rooms', roomDoc.id), {
-              occupiedBeds,
-              status: normalizeRoomStatus(String(roomData.status || ''), occupiedBeds, capacity),
-              updatedAt: serverTimestamp(),
-            });
-          }
-        }
+      if (!deleteAccountEndpoint) {
+        setError('Delete endpoint is not configured. Deploy functions and set VITE_DELETE_USER_ACCOUNT_URL if needed.');
+        return;
       }
 
-      await updateDoc(doc(db, 'users', row.id), {
-        role: 'archived',
-        roomNo: '',
-        roomBed: null,
-        notifyEmail: false,
-        archivedAt: serverTimestamp(),
-        archivedBy: auth.currentUser?.uid || null,
-        updatedAt: serverTimestamp(),
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        setError('Your session expired. Please sign in again.');
+        return;
+      }
+
+      const response = await fetch(deleteAccountEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ targetUid: row.id }),
       });
 
-      setSuccess(`Archived account ${row.email}.`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Delete request failed.');
+      }
+
+      setSuccess(`Permanently deleted account ${row.email}.`);
     } catch (deleteError) {
       const message = typeof deleteError?.message === 'string' ? deleteError.message : '';
-      setError(message ? `Unable to archive account right now: ${message}` : 'Unable to archive account right now.');
+      setError(message ? `Unable to delete account right now: ${message}` : 'Unable to delete account right now.');
     }
   };
 
