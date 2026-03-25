@@ -573,6 +573,19 @@ function TenantsManagement({ section = 'all' }) {
             && String(due.billingMonth || '').toLowerCase() === billingMonth.toLowerCase()
         );
 
+        const existingDueDate = formatDate(existingDue?.dueDate || '');
+        const dueDateChanged = existingDueDate && existingDueDate !== billingForm.dueDate;
+        const billingMonthChanged = existingDue
+          ? String(existingDue.billingMonth || '').toLowerCase() !== billingMonth.toLowerCase()
+          : false;
+
+        const normalizedExistingStatus = String(existingDue?.status || '').toLowerCase();
+        let nextStatus = dueDate.getTime() < Date.now() ? 'Overdue' : 'Pending';
+
+        if (normalizedExistingStatus === 'paid' && !dueDateChanged && !billingMonthChanged) {
+          nextStatus = 'Paid';
+        }
+
         const payload = {
           tenantUid: tenant.id,
           tenantEmail: tenant.email || '',
@@ -582,7 +595,7 @@ function TenantsManagement({ section = 'all' }) {
           monthlyRate,
           electricBill: electricBillPerTenant,
           amount,
-          status: existingDue?.status || 'Pending',
+          status: nextStatus,
           updatedAt: serverTimestamp(),
           updatedBy: user?.uid || null,
           updatedByEmail: user?.email || null,
