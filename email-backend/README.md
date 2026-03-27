@@ -24,6 +24,23 @@ This service sends automated due reminder emails using SMTP + Firestore.
 5. Run locally:
    - `npm run dev`
 
+## Deploy to Render (Production)
+
+This repository includes a Render blueprint at the project root: `render.yaml`.
+
+1. Push your latest code to GitHub.
+2. In Render, create a new Blueprint and select this repository.
+3. Render will detect the `dormitory-email-backend` web service.
+4. Set required secret env vars in Render:
+   - `ALLOWED_ORIGINS` (include your web app URL, e.g. `https://dorm-27fe2-eb047.web.app`)
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+   - `FIREBASE_SERVICE_ACCOUNT_JSON` (single-line JSON)
+   - Optional: `CONTACT_EMAIL`, `CONTACT_PHONE`, `CRON_SECRET`
+5. Deploy and verify health check:
+   - `GET https://<your-render-domain>/health`
+6. Test reminder route with admin token from frontend:
+   - `POST https://<your-render-domain>/api/reminders/run`
+
 ## Frontend Connection
 
 Set this in root frontend env:
@@ -31,6 +48,10 @@ Set this in root frontend env:
 - `VITE_SEND_DUE_REMINDERS_URL=http://localhost:5001/api/reminders/run`
 
 For deployed backend, replace with your live API URL.
+
+Example production value:
+
+- `VITE_SEND_DUE_REMINDERS_URL=https://<your-render-domain>/api/reminders/run`
 
 ## Auth
 

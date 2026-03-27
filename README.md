@@ -95,6 +95,16 @@ Replace placeholder content and connect to your backend as needed.
   - `VITE_SEND_DUE_REMINDERS_URL=http://localhost:5001/api/reminders/run`
 - For production, replace with your deployed backend URL.
 
+### Option B Production Flow (Render)
+1. Deploy the REST backend using `render.yaml` in the repository root.
+2. Set backend secrets in Render (`SMTP_*`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `ALLOWED_ORIGINS`).
+3. Update frontend production env:
+  - `VITE_SEND_DUE_REMINDERS_URL=https://<your-render-domain>/api/reminders/run`
+4. Rebuild frontend:
+  - `npm run build`
+5. Redeploy hosting:
+  - `firebase deploy --only hosting:dorm-27fe2-eb047`
+
 ### Data expected by reminder job
 - Collection: `dues`
 - Each due document should include:

@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: dormitory-email-backend
+    runtime: node
+    rootDir: email-backend
+    plan: free
+    autoDeploy: true
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 10000
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: ENABLE_INTERNAL_CRON
+        value: "true"
+      - key: CRON_SCHEDULE
+        value: "0 9 * * *"
+      - key: CRON_TIMEZONE
+        value: Asia/Manila
+      - key: CRON_SECRET
+        sync: false
+      - key: REMINDER_LEAD_DAYS
+        value: "7"
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SMTP_FROM_NAME
+        value: MZ Dormitory
+      - key: TENANT_PORTAL_URL
+        value: https://dorm-27fe2-eb047.web.app/tenant/login
+      - key: CONTACT_EMAIL
+        sync: false
+      - key: CONTACT_PHONE
+        sync: false
+      - key: DORM_NAME
+        value: MZ Dormitory
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: REQUIRE_ADMIN_AUTH
+        value: "true"
