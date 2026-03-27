@@ -64,9 +64,14 @@ function PaymentsManagement() {
       typeof window !== 'undefined'
       && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
 
-    // On deployed environments, ignore localhost endpoint values from local .env files.
-    if (!configuredEndpoint || (isLocalConfiguredEndpoint && !isRunningLocally)) {
+    // On deployed environments, a localhost endpoint cannot be reached by users.
+    // Only use Cloud Functions fallback when no endpoint is configured at all.
+    if (!configuredEndpoint) {
       return fallbackEndpoint;
+    }
+
+    if (isLocalConfiguredEndpoint && !isRunningLocally) {
+      return '';
     }
 
     return configuredEndpoint;
@@ -523,7 +528,7 @@ function PaymentsManagement() {
     }
 
     if (!reminderEndpoint) {
-      setReminderMessage('Reminder endpoint is not configured. Set VITE_SEND_DUE_REMINDERS_URL.');
+      setReminderMessage('Reminder endpoint is not configured for production. Set VITE_SEND_DUE_REMINDERS_URL to a publicly reachable URL (localhost will not work on deployed hosting).');
       return;
     }
 
