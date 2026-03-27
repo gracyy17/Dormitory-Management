@@ -54,20 +54,15 @@ function PaymentsManagement() {
 
   const reminderEndpoint = useMemo(() => {
     const configuredEndpoint = String(import.meta.env.VITE_SEND_DUE_REMINDERS_URL || '').trim();
-    const projectId = String(import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim();
-    const fallbackEndpoint = projectId
-      ? `https://asia-southeast1-${projectId}.cloudfunctions.net/sendDueRemindersNow`
-      : '';
 
     const isLocalConfiguredEndpoint = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(configuredEndpoint);
     const isRunningLocally =
       typeof window !== 'undefined'
       && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
 
-    // On deployed environments, a localhost endpoint cannot be reached by users.
-    // Only use Cloud Functions fallback when no endpoint is configured at all.
+    // Require explicit endpoint configuration to avoid unreachable fallback URLs.
     if (!configuredEndpoint) {
-      return fallbackEndpoint;
+      return '';
     }
 
     if (isLocalConfiguredEndpoint && !isRunningLocally) {
