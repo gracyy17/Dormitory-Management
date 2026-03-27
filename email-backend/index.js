@@ -416,6 +416,13 @@ app.post('/api/email/test', async (req, res) => {
   res.json({ ok: true, message: `Test email sent to ${to}` });
 });
 
+app.get('/api/reminders/run', (_req, res) => {
+  res.json({
+    ok: true,
+    message: 'Use POST /api/reminders/run with Authorization: Bearer <Firebase ID token>.',
+  });
+});
+
 app.post('/api/reminders/run', async (req, res) => {
   if (parseBoolean(REQUIRE_ADMIN_AUTH, true)) {
     const authCheck = await isAdminFromToken(req.headers.authorization || '');
