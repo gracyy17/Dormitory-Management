@@ -386,6 +386,15 @@ app.get('/health', (_req, res) => {
   });
 });
 
+app.get('/', (_req, res) => {
+  res.json({
+    ok: true,
+    message: 'Dormitory reminder backend is running.',
+    health: '/health',
+    trigger: '/api/reminders/run',
+  });
+});
+
 app.post('/api/email/test', async (req, res) => {
   const { to } = req.body || {};
   if (!to) {
