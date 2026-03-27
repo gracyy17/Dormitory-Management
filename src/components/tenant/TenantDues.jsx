@@ -357,7 +357,7 @@ function TenantDues() {
         }
 
         const resolvedPreset = String(cloudinaryUploadPreset).trim();
-        const uploadEndpoint = `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload?upload_preset=${encodeURIComponent(resolvedPreset)}`;
+        const uploadEndpoint = `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`;
         const formData = new FormData();
         formData.append('file', file, file?.name || 'receipt.jpg');
         formData.append('upload_preset', resolvedPreset);
@@ -411,6 +411,7 @@ function TenantDues() {
 
               await uploadBytes(receiptRef, receiptFile);
               receiptUrl = await getDownloadURL(receiptRef);
+              uploadNote = '';
             } catch (error) {
               const code = typeof error?.code === 'string' ? error.code : '';
               const isLikelyBucketConfigIssue = code.includes('storage/unknown') || code.includes('storage/unauthorized');

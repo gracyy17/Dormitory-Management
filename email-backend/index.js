@@ -278,7 +278,7 @@ ${safeContactPhone}`,
 async function processDueReminders({ dryRun = false, forceSend = false } = {}) {
   const dueSnapshot = await db
     .collection('dues')
-    .where('status', 'in', ['Pending', 'Overdue'])
+    .where('status', 'in', ['Pending', 'Overdue', 'Not Paid'])
     .get();
 
   let checked = 0;

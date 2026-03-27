@@ -69,11 +69,21 @@ async function sendEmailReminder({ to, subject, message }) {
   }
 }
 
-async function processDueReminders() {
+function toBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  }
+  return fallback;
+}
+
+async function processDueReminders({ forceSend = false } = {}) {
   const today = new Date();
   const dueSnapshot = await db
     .collection('dues')
-    .where('status', 'in', ['Pending', 'Overdue'])
+    .where('status', 'in', ['Pending', 'Overdue', 'Not Paid'])
     .get();
 
   let checked = 0;
@@ -85,7 +95,7 @@ async function processDueReminders() {
     const due = dueDoc.data();
 
     const dueDate = normalizeDate(due.dueDate);
-    if (!dueDate || dueDate > today) {
+    if (!dueDate || (!forceSend && dueDate > today)) {
       continue;
     }
 
@@ -135,8 +145,13 @@ async function processDueReminders() {
     );
   }
 
-  logger.info('Due reminders complete', { checked, emailSent, emailProviderConfigured });
-  return { checked, emailSent, emailProviderConfigured };
+  logger.info('Due reminders complete', {
+    checked,
+    emailSent,
+    emailProviderConfigured,
+    forceSend,
+  });
+  return { checked, emailSent, emailProviderConfigured, forceSend };
 }
 
 async function isAdminUser(uid) {
@@ -196,7 +211,9 @@ exports.sendDueRemindersNow = onRequest(
       return;
     }
 
-    const result = await processDueReminders();
+    const result = await processDueReminders({
+      forceSend: toBoolean(req.body?.forceSend, false),
+    });
     res.status(200).json({ ok: true, ...result });
   }
 );
