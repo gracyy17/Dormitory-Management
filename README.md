@@ -5,10 +5,9 @@ A modern web app for dormitory management, built with React and Vite.
 - **ADMIN:** dorm-27fe2-eb047.web.app/admin/login
 - **TENANT:** dorm-27fe2-eb047.web.app/tenant/login
 
-**Credentials**
+## Credentials
 - admin-email: septimogracey@gmail.com 
 - admin-password: admin123
-
 - tenant-email: ztzu02@gmail.com 
 - tenant-password: hellene123
 ## Features
