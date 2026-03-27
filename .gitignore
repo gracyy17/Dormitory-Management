@@ -29,3 +29,4 @@ dist-ssr
 # Local email backend secrets
 email-backend/.env
 dorm-27fe2-firebase-adminsdk-fbsvc-634e7e241c.json
+dorm-*-firebase-adminsdk-*.json
