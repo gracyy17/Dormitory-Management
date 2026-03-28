@@ -1,5 +1,10 @@
 name: CI - Code Quality & Build
 
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 on:
   push:
     branches:
@@ -36,3 +41,74 @@ jobs:
 
       - name: Build project
         run: npm run build
+
+  report-failure:
+    runs-on: ubuntu-latest
+    name: Report CI Failure
+    needs: validate
+    if: ${{ always() && needs.validate.result == 'failure' && github.event_name == 'pull_request' }}
+
+    steps:
+      - name: Post PR failure summary comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pullNumber = context.issue.number;
+            const runId = context.runId;
+
+            const jobsResponse = await github.rest.actions.listJobsForWorkflowRun({
+              owner,
+              repo,
+              run_id: runId,
+            });
+
+            const jobs = jobsResponse.data.jobs || [];
+            const failedJobs = jobs.filter((job) => job.conclusion === 'failure');
+
+            const failedLines = [];
+            for (const job of failedJobs) {
+              const failedSteps = (job.steps || [])
+                .filter((step) => step.conclusion === 'failure')
+                .map((step) => `  - ${step.name}`);
+
+              failedLines.push(`- ${job.name}`);
+              if (failedSteps.length > 0) {
+                failedLines.push(...failedSteps);
+              }
+            }
+
+            const marker = '<!-- ci-failure-report -->';
+            const body = `${marker}
+            ❌ CI failed for this PR.
+
+            Failed checks:
+            ${failedLines.length > 0 ? failedLines.join('\n') : '- A job failed, but no failed step was reported.'}
+
+            Open the failing check logs for exact error output and stack traces.`;
+
+            const comments = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: pullNumber,
+              per_page: 100,
+            });
+
+            const existing = comments.data.find((c) => c.body && c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pullNumber,
+                body,
+              });
+            }
