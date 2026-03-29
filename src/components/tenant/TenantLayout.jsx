@@ -113,9 +113,9 @@ function TenantLayout({ children }) {
   }, [isDarkMode]);
 
   const items = [
-    { to: '/tenant/dues', label: 'Dues', icon: <CardIcon className="ui-icon" size={17} /> },
-    { to: '/tenant/maintenance', label: 'Maintenance', icon: <WrenchIcon className="ui-icon" size={17} /> },
-    { to: '/tenant/profile', label: 'Profile', icon: <UserIcon className="ui-icon" size={17} /> },
+    { to: '/tenant/dues', label: 'ALFONSO', icon: <CardIcon className="ui-icon" size={17} /> },
+    { to: '/tenant/maintenance', label: 'SMIRNOFF', icon: <WrenchIcon className="ui-icon" size={17} /> },
+    { to: '/tenant/profile', label: 'RED HORSE', icon: <UserIcon className="ui-icon" size={17} /> },
   ];
 
   return (
