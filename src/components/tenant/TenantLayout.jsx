@@ -9,7 +9,7 @@ import { doc, getDoc } from 'firebase/firestore';
 
 const getTenantLoadingConfig = (pathname) => {
   const path = String(pathname || '').toLowerCase();
-
+const num = 1
   if (path.includes('/tenant/dues')) {
     return {
       title: 'Loading Dues',
